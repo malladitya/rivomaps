@@ -47,11 +47,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0B1220;
+    /* Use true black for background and surface to remove dark-blue cast */
+    --bg: #000000;
     --text: #E5E7EB;
     --muted: #9CA3AF;
-    --surface: #0F172A;
-    --outline: #1F2937;
+    --surface: #000000;
+    --outline: #111214;
     --primary: #22D3EE;
     --primary-dark: #06B6D4;
     --quiet: #34D399;
