@@ -44,6 +44,54 @@ if ('IntersectionObserver' in window) {
   reveals.forEach((el) => el.classList.add('revealed'));
 }
 
+/* 3D stage interaction: tilt and parallax */
+(() => {
+  const stageWrap = document.querySelector('.three-d-stage');
+  const stage = document.querySelector('.stage');
+  if (!stageWrap || !stage) return;
+
+  const maxTilt = 8; // degrees
+  const depthMap = {
+    'card--panel': 40,
+    'card--map': 10
+  };
+
+  function setTransform(xDeg, yDeg) {
+    // read CSS scale (responsive) and apply with rotation
+    const rootStyle = getComputedStyle(document.documentElement);
+    const scaleVal = parseFloat(rootStyle.getPropertyValue('--stage-scale')) || 1;
+    stage.style.transform = `rotateX(${xDeg}deg) rotateY(${yDeg}deg) scale(${scaleVal})`;
+    // parallax child cards (use CSS variable depths where possible)
+    stage.querySelectorAll('.card').forEach((c) => {
+      const isPanel = c.classList.contains('card--panel');
+      const depthCss = isPanel ? rootStyle.getPropertyValue('--card-panel-depth') : rootStyle.getPropertyValue('--card-map-depth');
+      const depth = depthCss ? depthCss.trim() : (isPanel ? '40px' : '10px');
+      c.style.transform = `translateZ(${depth})`;
+    });
+  }
+
+  function onMove(e) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = stageWrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = (clientX - cx) / rect.width;
+    const dy = (clientY - cy) / rect.height;
+    const yDeg = dx * maxTilt;
+    const xDeg = -dy * maxTilt;
+    setTransform(xDeg, yDeg);
+  }
+
+  function onLeave() { setTransform(0, 0); }
+
+  stageWrap.addEventListener('mousemove', onMove);
+  stageWrap.addEventListener('touchmove', onMove, { passive: true });
+  stageWrap.addEventListener('mouseleave', onLeave);
+  stageWrap.addEventListener('touchend', onLeave);
+})();
+
 /* Azure Maps integration */
 let map, datasource, routeLayer;
 const statusEl = document.getElementById('demo-status');
