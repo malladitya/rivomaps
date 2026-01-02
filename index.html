@@ -34,6 +34,46 @@
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
+  <!-- Welcome Popup -->
+  <div id="welcomePopup" class="welcome-overlay" style="display: none;">
+    <div class="welcome-popup">
+      <button class="welcome-close" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div class="welcome-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#0EA5A2" stroke-width="2"/>
+          <circle cx="12" cy="10" r="3" fill="#0EA5A2"/>
+        </svg>
+      </div>
+      <h2>Welcome to Harbor Navigation</h2>
+      <p>Your sensory-friendly navigation companion helping you find quiet, comfortable routes.</p>
+      <div class="welcome-features">
+        <div class="welcome-feature">
+          <span class="feature-emoji">🔇</span>
+          <span>Avoid noisy areas</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="feature-emoji">🌳</span>
+          <span>Prefer calm paths</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="feature-emoji">🤝</span>
+          <span>Community-driven</span>
+        </div>
+      </div>
+      <button class="btn btn--primary btn--lg welcome-btn">
+        Get Started
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <!-- Theme Toggle -->
   <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
     <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -488,19 +528,42 @@
       <script src="layout.js"></script>
       <script src="script.js"></script>
       <script>
+        // Welcome popup
+        (function() {
+          const popup = document.getElementById('welcomePopup');
+          if (!popup) return;
+          
+          if (!sessionStorage.getItem('welcomeSeen')) {
+            popup.style.display = 'flex';
+          }
+          
+          const closePopup = () => {
+            popup.style.opacity = '0';
+            setTimeout(() => {
+              popup.style.display = 'none';
+              sessionStorage.setItem('welcomeSeen', 'true');
+            }, 300);
+          };
+          
+          popup.querySelector('.welcome-close').onclick = closePopup;
+          popup.querySelector('.welcome-btn').onclick = closePopup;
+          popup.onclick = (e) => { if (e.target === popup) closePopup(); };
+          document.onkeydown = (e) => { if (e.key === 'Escape' && popup.style.display === 'flex') closePopup(); };
+        })();
+
         // Theme toggle
-        const themeToggle = document.getElementById('themeToggle');
-        const savedTheme = localStorage.getItem('theme');
-        
-        if (savedTheme === 'dark') {
-          document.body.classList.add('dark-mode');
-        }
-        
-        themeToggle.addEventListener('click', () => {
-          document.body.classList.toggle('dark-mode');
-          const isDark = document.body.classList.contains('dark-mode');
-          localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        });
+        (function() {
+          const toggle = document.getElementById('themeToggle');
+          if (!toggle) return;
+          
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'dark') document.body.classList.add('dark-mode');
+          
+          toggle.onclick = () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+          };
+        })();
       </script>
 </body>
 
