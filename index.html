@@ -510,43 +510,44 @@
       <script src="layout.js"></script>
       <script src="script.js"></script>
       <script>
-        // Welcome popup
-        document.addEventListener('DOMContentLoaded', () => {
+        // Welcome popup - runs immediately
+        (function() {
           const popup = document.getElementById('welcomePopup');
-          const closeBtn = popup.querySelector('.welcome-close');
-          const getStartedBtn = popup.querySelector('.welcome-btn');
+          if (!popup) return;
           
-          // Check if user has seen popup before
+          // Show popup immediately if not seen
           if (!sessionStorage.getItem('welcomeSeen')) {
-            popup.classList.remove('hidden');
-          } else {
-            popup.classList.add('hidden');
+            popup.style.display = 'flex';
           }
           
-          // Close popup
           const closePopup = () => {
-            popup.style.animation = 'fadeOut 300ms ease';
+            popup.style.opacity = '0';
             setTimeout(() => {
-              popup.classList.add('hidden');
+              popup.style.display = 'none';
               sessionStorage.setItem('welcomeSeen', 'true');
             }, 300);
           };
           
-          closeBtn.addEventListener('click', closePopup);
-          getStartedBtn.addEventListener('click', closePopup);
+          // Close button
+          const closeBtn = popup.querySelector('.welcome-close');
+          if (closeBtn) closeBtn.onclick = closePopup;
+          
+          // Get started button
+          const startBtn = popup.querySelector('.welcome-btn');
+          if (startBtn) startBtn.onclick = closePopup;
           
           // Close on overlay click
-          popup.addEventListener('click', (e) => {
+          popup.onclick = (e) => {
             if (e.target === popup) closePopup();
-          });
+          };
           
-          // Close on Escape key
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !popup.classList.contains('hidden')) {
+          // Close on Escape
+          document.onkeydown = (e) => {
+            if (e.key === 'Escape' && popup.style.display === 'flex') {
               closePopup();
             }
-          });
-        });
+          };
+        })();
       </script>
 </body>
 
