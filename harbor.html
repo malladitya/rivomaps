@@ -239,6 +239,9 @@
             box-shadow: 0 2px 6px rgba(14, 165, 162, 0.3);
         }
     </style>
+    <script>
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark-mode');
+    </script>
 </head>
 
 <body>
@@ -247,19 +250,21 @@
 
     <!-- Theme Toggle -->
     <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
-        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
-        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
     </button>
 
@@ -444,7 +449,8 @@
 
                     <div id="routeStats"
                         class="absolute bottom-6 left-6 z-[400] bg-white/70 backdrop-blur-md px-5 py-4 rounded-xl shadow-lg border border-gray-100 hidden">
-                        <h4 class="text-sm font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">Your Comfortable Route</h4>
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">Your
+                            Comfortable Route</h4>
                         <div class="space-y-2">
                             <div class="flex items-center gap-2 text-harbor-700 font-medium">
                                 <i class="fa-solid fa-route text-harbor-500"></i>
@@ -464,22 +470,6 @@
     <div id="site-footer-placeholder"></div>
 
     <script src="layout.js"></script>
-
-    <script>
-        // Theme toggle
-        (function() {
-            const toggle = document.getElementById('themeToggle');
-            if (!toggle) return;
-            
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') document.body.classList.add('dark-mode');
-            
-            toggle.onclick = () => {
-                document.body.classList.toggle('dark-mode');
-                localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-            };
-        })();
-    </script>
 
     <script>
         let map, noiseLayer, constructionLayer, crowdLayer, routeLayer, startMarker, endMarker, trafficLayer;
@@ -566,10 +556,10 @@
                     const { latitude, longitude, accuracy } = position.coords;
                     startCoords = [longitude, latitude];
 
-                    console.log("✓ Location detected:", { 
-                        latitude: latitude.toFixed(6), 
-                        longitude: longitude.toFixed(6), 
-                        accuracy: Math.round(accuracy) + "m" 
+                    console.log("✓ Location detected:", {
+                        latitude: latitude.toFixed(6),
+                        longitude: longitude.toFixed(6),
+                        accuracy: Math.round(accuracy) + "m"
                     });
 
                     // Update marker position
@@ -610,7 +600,7 @@
 
                     let errorMsg = "Location unavailable";
                     let userMsg = "";
-                    
+
                     switch (error.code) {
                         case error.PERMISSION_DENIED:
                             errorMsg = "Location permission denied";
@@ -1155,7 +1145,7 @@
                 console.error('Find Route button not found');
                 return;
             }
-            
+
             const btnText = btn.querySelector('span');
             const btnIcon = btn.querySelector('i');
             const alert = document.getElementById('gentleAlert');

@@ -1,10 +1,10 @@
-
 /**
  * Loads the shared header and footer components.
  */
 document.addEventListener('DOMContentLoaded', () => {
     loadComponent('components/header.html', 'site-header-placeholder', initHeader);
     loadComponent('components/footer.html', 'site-footer-placeholder', initFooter);
+    initTheme();
 });
 
 function loadComponent(url, placeholderId, callback) {
@@ -43,8 +43,6 @@ function initHeader() {
             }
         });
     }
-
-    // Highlight active link logic could go here if needed
 }
 
 function initFooter() {
@@ -55,12 +53,46 @@ function initFooter() {
     }
 }
 
+function initTheme() {
+    const toggle = document.getElementById('themeToggle');
+    if (!toggle) return;
+
+    const setTheme = (isDark) => {
+        if (isDark) {
+            document.documentElement.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+        }
+    };
+
+    // Initial check (consistent with head-level flash-prevention script)
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+    }
+
+    const handleThemeToggle = (e) => {
+        if (e) e.preventDefault();
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        setTheme(!isDark);
+    };
+
+    toggle.addEventListener('click', handleThemeToggle);
+    // Add touch support for faster mobile response
+    toggle.addEventListener('touchend', (e) => {
+        handleThemeToggle(e);
+        // Prevent double trigger (click follow-through)
+        if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+}
+
 // Global accessibility helpers
 document.addEventListener('DOMContentLoaded', () => {
     const skipLink = document.querySelector('.skip-link');
     if (skipLink) {
         skipLink.addEventListener('click', (e) => {
-            // Default behavior is fine for navigation, but we want to ensure focus moves
             const targetId = skipLink.getAttribute('href');
             if (targetId && targetId.startsWith('#')) {
                 const target = document.querySelector(targetId);
