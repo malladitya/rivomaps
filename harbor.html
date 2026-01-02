@@ -349,6 +349,23 @@
                                     </label>
                                 </div>
                             </label>
+
+                            <label
+                                class="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-harbor-50 transition-colors cursor-pointer group">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
+                                        <i class="fa-solid fa-traffic-light"></i>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-700">Show Real-time Traffic</span>
+                                </div>
+                                <div class="toggle-container">
+                                    <input type="checkbox" id="toggle-traffic" class="toggle-checkbox">
+                                    <label class="toggle-label" for="toggle-traffic">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
@@ -423,7 +440,8 @@
     <script src="layout.js"></script>
 
     <script>
-        let map, noiseLayer, constructionLayer, routeLayer, startMarker, endMarker;
+        let map, noiseLayer, constructionLayer, routeLayer, startMarker, endMarker, trafficLayer;
+        const AZURE_MAPS_KEY = 'YOUR_AZURE_MAPS_KEY'; // Replace with actual key
         let startCoords = [76.8, 30.755]; // Lng, Lat
         let endCoords = [76.78, 30.74];
 
@@ -1130,6 +1148,26 @@
                     document.getElementById('map').style.cursor = '';
                 }
             });
+
+            // Traffic Toggle
+            const toggleTraffic = document.getElementById('toggle-traffic');
+            if (toggleTraffic) {
+                toggleTraffic.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        if (!trafficLayer) {
+                            trafficLayer = L.tileLayer(`https://atlas.microsoft.com/map/traffic/flow/tile/png?api-version=1.0&style=relative&zoom={z}&x={x}&y={y}&subscription-key=${AZURE_MAPS_KEY}`, {
+                                opacity: 0.7,
+                                maxZoom: 22
+                            });
+                        }
+                        trafficLayer.addTo(map);
+                    } else {
+                        if (trafficLayer) {
+                            map.removeLayer(trafficLayer);
+                        }
+                    }
+                });
+            }
 
             map.on('click', async (e) => {
                 if (!isAddingNoise || isCalculating) return;

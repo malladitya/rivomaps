@@ -284,7 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            const { latitude, longitude } = position.coords;
+            const { latitude, longitude, accuracy } = position.coords;
+            console.log(`Location precision: ${accuracy}m`);
+
             originInput.value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
             originInput.placeholder = originalPlaceholder;
 
@@ -301,7 +303,14 @@ document.addEventListener('DOMContentLoaded', () => {
           (error) => {
             console.error('Geolocation error:', error);
             originInput.placeholder = originalPlaceholder;
-            alert('Could not get your location. Please enter it manually.');
+            let errorMsg = 'Could not get your location.';
+            if (error.code === error.TIMEOUT) errorMsg = 'Location request timed out. Please try again or enter manually.';
+            alert(errorMsg);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
           }
         );
       } else {
