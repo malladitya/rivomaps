@@ -1117,6 +1117,11 @@
 
         function initControls() {
             const btn = document.getElementById('findRouteBtn');
+            if (!btn) {
+                console.error('Find Route button not found');
+                return;
+            }
+            
             const btnText = btn.querySelector('span');
             const btnIcon = btn.querySelector('i');
             const alert = document.getElementById('gentleAlert');
@@ -1126,14 +1131,20 @@
             const toggleCrowds = document.getElementById('toggle-crowds');
             const toggleConst = document.getElementById('toggle-const');
 
-            noiseSlider.addEventListener('input', (e) => {
-                const value = e.target.value;
-                const labels = ['Silent', 'Quiet Priority', 'Moderate', 'Lively OK'];
-                const index = Math.min(Math.floor(value / 25), 3);
-                noiseValue.textContent = labels[index];
-            });
+            if (noiseSlider && noiseValue) {
+                noiseSlider.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    const labels = ['Silent', 'Quiet Priority', 'Moderate', 'Lively OK'];
+                    const index = Math.min(Math.floor(value / 25), 3);
+                    noiseValue.textContent = labels[index];
+                });
+            }
 
-            btn.addEventListener('click', () => calculateAndDisplayRoute(false));
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Find Route button clicked');
+                calculateAndDisplayRoute(false);
+            });
 
             // --- Demo: Clear Zones ---
             const clearZonesBtn = document.getElementById('clearZonesBtn');

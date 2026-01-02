@@ -233,24 +233,20 @@ window.planComfortableRoute = planComfortableRoute;
 
 
 // Initialize map after SDK loads
-if (window.atlas) {
+if (window.atlas && document.getElementById('azureMap')) {
   initMap();
+} else if (!document.getElementById('azureMap')) {
+  console.log('Azure Maps not needed on this page');
 } else {
   console.error('Azure Maps SDK not loaded.');
 }
 
-// Add event listener for harbor.html route button
+// Add event listener for index.html demo button only
 document.addEventListener('DOMContentLoaded', () => {
-  const findRouteBtn = document.getElementById('findRouteBtn');
-  if (findRouteBtn) {
-    // Check if this is the harbor.html page (has the calculateAndDisplayRoute function)
-    if (typeof calculateAndDisplayRoute === 'function') {
-      // Use the existing harbor.html functionality
-      findRouteBtn.addEventListener('click', () => {
-        calculateAndDisplayRoute(false);
-      });
-    } else {
-      // Fallback for other pages
+  // Only run on index.html (check for Azure Maps element)
+  if (document.getElementById('azureMap')) {
+    const findRouteBtn = document.getElementById('findRouteBtn');
+    if (findRouteBtn && window.planComfortableRoute) {
       findRouteBtn.addEventListener('click', () => {
         const originInput = document.getElementById('startInput');
         const destInput = document.getElementById('endInput');
@@ -258,10 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (originInput && destInput) {
           const origin = [77.4538, 28.6692];
           const destination = [77.4316, 28.6384];
-
-          if (window.planComfortableRoute) {
-            window.planComfortableRoute(origin, destination);
-          }
+          window.planComfortableRoute(origin, destination);
         }
       });
     }

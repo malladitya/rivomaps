@@ -34,6 +34,46 @@
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
+  <!-- Welcome Popup -->
+  <div id="welcomePopup" class="welcome-overlay">
+    <div class="welcome-popup">
+      <button class="welcome-close" aria-label="Close welcome message">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div class="welcome-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#0EA5A2" stroke-width="2"/>
+          <circle cx="12" cy="10" r="3" fill="#0EA5A2"/>
+        </svg>
+      </div>
+      <h2>Welcome to Harbor Navigation</h2>
+      <p>Your sensory-friendly navigation companion. We help you find quiet, comfortable routes that reduce sensory overload.</p>
+      <div class="welcome-features">
+        <div class="welcome-feature">
+          <span class="feature-emoji">🔇</span>
+          <span>Avoid noisy areas</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="feature-emoji">🌳</span>
+          <span>Prefer calm paths</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="feature-emoji">🤝</span>
+          <span>Community-driven</span>
+        </div>
+      </div>
+      <button class="btn btn--primary btn--lg welcome-btn">
+        Get Started
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <div id="site-header-placeholder"></div>
 
   <main id="main">
@@ -469,6 +509,45 @@
 
       <script src="layout.js"></script>
       <script src="script.js"></script>
+      <script>
+        // Welcome popup
+        document.addEventListener('DOMContentLoaded', () => {
+          const popup = document.getElementById('welcomePopup');
+          const closeBtn = popup.querySelector('.welcome-close');
+          const getStartedBtn = popup.querySelector('.welcome-btn');
+          
+          // Check if user has seen popup before
+          if (!sessionStorage.getItem('welcomeSeen')) {
+            popup.classList.remove('hidden');
+          } else {
+            popup.classList.add('hidden');
+          }
+          
+          // Close popup
+          const closePopup = () => {
+            popup.style.animation = 'fadeOut 300ms ease';
+            setTimeout(() => {
+              popup.classList.add('hidden');
+              sessionStorage.setItem('welcomeSeen', 'true');
+            }, 300);
+          };
+          
+          closeBtn.addEventListener('click', closePopup);
+          getStartedBtn.addEventListener('click', closePopup);
+          
+          // Close on overlay click
+          popup.addEventListener('click', (e) => {
+            if (e.target === popup) closePopup();
+          });
+          
+          // Close on Escape key
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !popup.classList.contains('hidden')) {
+              closePopup();
+            }
+          });
+        });
+      </script>
 </body>
 
 </html>
