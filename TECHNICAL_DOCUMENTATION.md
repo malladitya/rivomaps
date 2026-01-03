@@ -1,7 +1,7 @@
-# Harbor Navigation - Technical Documentation
+# RIVO Navigation - Technical Documentation
 
 ## Overview
-Harbor Navigation is a sensory-friendly navigation app designed for people with autism and sensory sensitivities. It uses AI and community data to find comfortable, low-stimulus routes.
+RIVO Navigation is a sensory-friendly navigation app designed for people with autism and sensory sensitivities. It uses AI and community data to find comfortable, low-stimulus routes.
 
 ---
 
@@ -93,7 +93,7 @@ Harbor Navigation is a sensory-friendly navigation app designed for people with 
 ```
 sensorysafe/
 ├── index.html          # Main landing page
-├── harbor.html         # Navigation app interface
+├── RIVO.html         # Navigation app interface
 ├── style.css           # Global styles
 ├── layout.css          # Layout components
 ├── script.js           # Core functionality
@@ -305,4 +305,4 @@ For technical support: [Contact Form on Website]
 
 **Version**: 1.0.0  
 **Last Updated**: 2024  
-**Maintained By**: Harbor Navigation Team
+**Maintained By**: RIVO Navigation Team

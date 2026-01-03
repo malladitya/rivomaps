@@ -1,0 +1,84 @@
+# RIVO REBRANDING GUIDE
+# Complete instructions to rename RIVO to Rivo
+
+## STEP 1: RENAME FILES MANUALLY
+
+In File Explorer, rename these files:
+1. RIVO.html → rivo.html
+2. RIVOazuremap.html → rivoazuremap.html
+
+## STEP 2: FIND AND REPLACE IN ALL FILES
+
+Use your code editor's "Find in Files" feature (Ctrl+Shift+F in VS Code):
+
+### Replace "RIVO" with "Rivo":
+Find: RIVO
+Replace with: Rivo
+Files: *.html, *.js, *.md, *.txt, *.json
+
+### Replace "RIVO" with "rivo":
+Find: RIVO
+Replace with: rivo
+Files: *.html, *.js, *.css, *.md, *.txt
+
+### Replace "--RIVO-" with "--rivo-" (CSS variables):
+Find: --RIVO-
+Replace with: --rivo-
+Files: *.css, *.html
+
+## STEP 3: UPDATE SPECIFIC FILES
+
+### package.json
+Change:
+- "name": "sensorysafe-backend" → "name": "rivo-backend"
+
+### README.md
+Change all instances of:
+- RIVO Navigation → Rivo
+- RIVO → Rivo
+
+### server.js
+No changes needed (no RIVO references)
+
+## STEP 4: UPDATE LINKS
+
+### In index.html:
+Change: href="RIVO.html" → href="rivo.html"
+
+### In script.js:
+Change: window.location.href = 'RIVO.html' → window.location.href = 'rivo.html'
+
+## STEP 5: VERIFY CHANGES
+
+Check these files have been updated:
+✓ index.html - Title, headings, links
+✓ rivo.html (renamed from RIVO.html)
+✓ rivoazuremap.html (renamed from RIVOazuremap.html)
+✓ components/header.html - Logo, navigation
+✓ components/footer.html - Copyright
+✓ style.css - CSS variables (--RIVO- to --rivo-)
+✓ layout.css - CSS variables
+✓ script.js - Comments, window.location
+✓ TECHNICAL_DOCUMENTATION.md - All references
+✓ DEMO_PRESENTATION_GUIDE.md - All references
+✓ AZURE_AI_INTEGRATION_GUIDE.txt - All references
+✓ package.json - Project name
+
+## QUICK COMMAND (if using VS Code):
+
+1. Press Ctrl+Shift+H (Find and Replace in Files)
+2. Find: RIVO
+   Replace: Rivo
+   Click "Replace All"
+
+3. Find: RIVO
+   Replace: rivo
+   Click "Replace All"
+
+4. Find: --RIVO-
+   Replace: --rivo-
+   Click "Replace All"
+
+## DONE!
+
+Your app is now rebranded to Rivo!
