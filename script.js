@@ -491,9 +491,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (end) params.append('end', end);
 
           // Use relative path for better compatibility with GitHub Pages/subfolders
-          window.location.href = `RIVO.html?${params.toString()}`;
+          window.location.href = `rivo.html?${params.toString()}`;
         } else {
-          window.location.href = 'RIVO.html';
+          window.location.href = 'rivo.html';
         }
       }
     });
