@@ -409,8 +409,8 @@
               </div>
 
               <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                <button onclick="reportCurrentLocation('noise')" class="btn" style="flex: 1;">🔊 Report Noise</button>
-                <button onclick="reportCurrentLocation('crowd')" class="btn" style="flex: 1;">👥 Report Crowd</button>
+                <button onclick="goToReportZone('noise')" class="btn" style="flex: 1;">🔊 Report Noise</button>
+                <button onclick="goToReportZone('crowd')" class="btn" style="flex: 1;">👥 Report Crowd</button>
               </div>
               <button onclick="checkComfort()" class="btn" style="width: 100%; margin-bottom: 12px;">🤖 Check Comfort
                 Level</button>
@@ -493,6 +493,77 @@
         </div>
       </div>
 
+      <!-- Report Zone Section -->
+      <section id="report-zone" class="section section--alt" aria-labelledby="report-zone-title">
+        <div class="container reveal">
+          <h2 id="report-zone-title">Report a Zone</h2>
+          <p class="section-intro">Help the community by reporting noisy or construction areas. Zones auto-expire in 5 minutes.</p>
+          
+          <div class="report-zone-card">
+            <div class="report-zone-form">
+              <!-- Place Name Input -->
+              <div class="report-input-group">
+                <label for="reportPlaceInputIndex" class="report-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  Location
+                </label>
+                <div class="report-input-wrapper">
+                  <input type="text" id="reportPlaceInputIndex" 
+                    class="report-input"
+                    placeholder="Enter place name (e.g., Sector 17, Chandigarh)"
+                    autocomplete="off">
+                  <button type="button" id="useCurrentLocationBtn" class="current-location-btn" title="Use current location">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <circle cx="12" cy="12" r="3"/>
+                      <line x1="12" y1="2" x2="12" y2="6"/>
+                      <line x1="12" y1="18" x2="12" y2="22"/>
+                      <line x1="2" y1="12" x2="6" y2="12"/>
+                      <line x1="18" y1="12" x2="22" y2="12"/>
+                    </svg>
+                  </button>
+                  <div id="reportPlaceSuggestionsIndex" class="report-suggestions"></div>
+                </div>
+              </div>
+              
+              <!-- Zone Type Dropdown -->
+              <div class="report-input-group">
+                <label for="reportZoneTypeIndex" class="report-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  Zone Type
+                </label>
+                <select id="reportZoneTypeIndex" class="report-select">
+                  <option value="noise">🔊 Noise Zone</option>
+                  <option value="crowd">👥 Crowded Area</option>
+                  <option value="construction">🚧 Construction Zone</option>
+                </select>
+              </div>
+              
+              <!-- Report Button -->
+              <button id="reportZoneBtnIndex" class="btn btn--primary report-btn" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                Report Zone
+              </button>
+            </div>
+            
+            <!-- Status Message -->
+            <div id="reportStatusIndex" class="report-status" style="display: none;">
+              <span id="reportStatusIconIndex" class="report-status-icon">✓</span>
+              <span id="reportStatusTextIndex"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Testimonials -->
       <section id="testimonials" class="section" aria-labelledby="testimonials-title">
         <div class="container">
@@ -542,6 +613,257 @@
       <script src="layout.js"></script>
       <script src="script.js"></script>
       <script src="helpers.js"></script>
+      
+      <!-- Report Zone Functionality -->
+      <script>
+        // Report Zone by Place Name
+        (function() {
+          let reportPlaceCoords = null;
+          
+          const reportInput = document.getElementById('reportPlaceInputIndex');
+          const reportSuggestions = document.getElementById('reportPlaceSuggestionsIndex');
+          const reportBtn = document.getElementById('reportZoneBtnIndex');
+          const reportStatus = document.getElementById('reportStatusIndex');
+          const reportStatusText = document.getElementById('reportStatusTextIndex');
+          const reportStatusIcon = document.getElementById('reportStatusIconIndex');
+          const zoneTypeSelect = document.getElementById('reportZoneTypeIndex');
+          
+          if (!reportInput || !reportBtn) return;
+          
+          // Debounce helper
+          const debounce = (func, wait) => {
+            let timeout;
+            return function(...args) {
+              clearTimeout(timeout);
+              timeout = setTimeout(() => func(...args), wait);
+            };
+          };
+          
+          // Fetch place suggestions from Nominatim
+          const fetchSuggestions = debounce(async (query) => {
+            if (query.length < 3) {
+              reportSuggestions.classList.remove('active');
+              return;
+            }
+            
+            try {
+              const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+              const response = await fetch(url);
+              const results = await response.json();
+              
+              reportSuggestions.innerHTML = '';
+              
+              if (results.length === 0) {
+                reportSuggestions.classList.remove('active');
+                return;
+              }
+              
+              results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'report-suggestion-item';
+                div.innerHTML = `
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>${result.display_name}</span>
+                `;
+                div.addEventListener('click', () => {
+                  reportInput.value = result.display_name.split(',')[0];
+                  reportPlaceCoords = {
+                    lat: parseFloat(result.lat),
+                    lng: parseFloat(result.lon),
+                    name: result.display_name.split(',')[0]
+                  };
+                  reportSuggestions.classList.remove('active');
+                  reportBtn.disabled = false;
+                });
+                reportSuggestions.appendChild(div);
+              });
+              
+              reportSuggestions.classList.add('active');
+              
+            } catch (error) {
+              console.error("Geocoding error:", error);
+            }
+          }, 500);
+          
+          // Input event
+          reportInput.addEventListener('input', (e) => {
+            reportPlaceCoords = null;
+            reportBtn.disabled = true;
+            fetchSuggestions(e.target.value);
+          });
+          
+          // Close suggestions on outside click
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('#reportPlaceInputIndex') && !e.target.closest('#reportPlaceSuggestionsIndex')) {
+              reportSuggestions.classList.remove('active');
+            }
+          });
+          
+          // Show status message
+          function showStatus(type, message) {
+            reportStatus.style.display = 'flex';
+            reportStatus.className = 'report-status ' + type;
+            reportStatusText.textContent = message;
+            reportStatusIcon.textContent = type === 'success' ? '✓' : '✗';
+            
+            setTimeout(() => {
+              reportStatus.style.display = 'none';
+            }, 5000);
+          }
+          
+          // Report button click
+          reportBtn.addEventListener('click', async () => {
+            if (!reportPlaceCoords) return;
+            
+            const zoneType = zoneTypeSelect.value;
+            const { lat, lng, name } = reportPlaceCoords;
+            
+            // Disable button
+            reportBtn.disabled = true;
+            const originalHTML = reportBtn.innerHTML;
+            reportBtn.innerHTML = `
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32"/>
+              </svg>
+              Adding...
+            `;
+            
+            try {
+              // Save to localStorage with timestamp
+              const savedZones = JSON.parse(localStorage.getItem('userReportedZones') || '[]');
+              savedZones.push({
+                coords: [lng, lat],
+                type: zoneType,
+                name: name,
+                timestamp: Date.now()
+              });
+              localStorage.setItem('userReportedZones', JSON.stringify(savedZones));
+              
+              // Show success
+              const zoneLabels = { noise: 'Noise', crowd: 'Crowded', construction: 'Construction' };
+              const zoneLabel = zoneLabels[zoneType] || zoneType;
+              showStatus('success', `${zoneLabel} zone reported at "${name}" - expires in 5 min`);
+              
+              // Clear input
+              reportInput.value = '';
+              reportPlaceCoords = null;
+              
+              console.log(`📍 Zone reported: ${name} at [${lat}, ${lng}]`);
+              
+            } catch (error) {
+              console.error("Error reporting zone:", error);
+              showStatus('error', 'Failed to report zone. Please try again.');
+            }
+            
+            // Reset button
+            reportBtn.innerHTML = originalHTML;
+          });
+          
+          // Clean up expired zones (older than 5 minutes)
+          function cleanupExpiredZones() {
+            const FIVE_MINUTES = 5 * 60 * 1000;
+            const savedZones = JSON.parse(localStorage.getItem('userReportedZones') || '[]');
+            const activeZones = savedZones.filter(zone => (Date.now() - zone.timestamp) < FIVE_MINUTES);
+            localStorage.setItem('userReportedZones', JSON.stringify(activeZones));
+          }
+          
+          // Run cleanup on load and periodically
+          cleanupExpiredZones();
+          setInterval(cleanupExpiredZones, 60000);
+          
+          // Current Location Button
+          const currentLocationBtn = document.getElementById('useCurrentLocationBtn');
+          if (currentLocationBtn) {
+            currentLocationBtn.addEventListener('click', async () => {
+              currentLocationBtn.classList.add('loading');
+              
+              if (!navigator.geolocation) {
+                showStatus('error', 'Geolocation is not supported by your browser');
+                currentLocationBtn.classList.remove('loading');
+                return;
+              }
+              
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  const lat = position.coords.latitude;
+                  const lng = position.coords.longitude;
+                  
+                  // Reverse geocode to get place name
+                  try {
+                    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    const placeName = data.address?.suburb || data.address?.neighbourhood || 
+                                     data.address?.village || data.address?.town || 
+                                     data.address?.city || 'Current Location';
+                    
+                    reportInput.value = placeName;
+                    reportPlaceCoords = { lat, lng, name: placeName };
+                    reportBtn.disabled = false;
+                    
+                    showStatus('success', `📍 Location detected: ${placeName}`);
+                  } catch (e) {
+                    reportInput.value = 'Current Location';
+                    reportPlaceCoords = { lat, lng, name: 'Current Location' };
+                    reportBtn.disabled = false;
+                  }
+                  
+                  currentLocationBtn.classList.remove('loading');
+                },
+                (error) => {
+                  console.error('Geolocation error:', error);
+                  let errorMsg = 'Unable to get location';
+                  if (error.code === 1) errorMsg = 'Location permission denied';
+                  if (error.code === 2) errorMsg = 'Location unavailable';
+                  if (error.code === 3) errorMsg = 'Location request timed out';
+                  showStatus('error', errorMsg);
+                  currentLocationBtn.classList.remove('loading');
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+              );
+            });
+          }
+          
+          // Add spin animation
+          const style = document.createElement('style');
+          style.textContent = `
+            @keyframes spin { to { transform: rotate(360deg); } }
+            .spin { animation: spin 1s linear infinite; }
+          `;
+          document.head.appendChild(style);
+        })();
+        
+        // Global function to scroll to report zone and pre-select type
+        function goToReportZone(type) {
+          const reportSection = document.getElementById('report-zone');
+          const zoneTypeSelect = document.getElementById('reportZoneTypeIndex');
+          
+          if (reportSection) {
+            reportSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Pre-select the zone type
+            if (zoneTypeSelect && type) {
+              zoneTypeSelect.value = type;
+              // Add highlight effect
+              zoneTypeSelect.style.boxShadow = '0 0 0 3px rgba(14, 165, 162, 0.3)';
+              setTimeout(() => {
+                zoneTypeSelect.style.boxShadow = '';
+              }, 2000);
+            }
+            
+            // Focus on input after scroll
+            setTimeout(() => {
+              const reportInput = document.getElementById('reportPlaceInputIndex');
+              if (reportInput) reportInput.focus();
+            }, 500);
+          }
+        }
+      </script>
+      
       <script>
         // Welcome popup
         (function () {

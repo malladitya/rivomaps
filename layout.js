@@ -54,8 +54,16 @@ function initFooter() {
 }
 
 function initTheme() {
+    // Don't initialize here for rivo.html - it has its own handler
     const toggle = document.getElementById('themeToggle');
     if (!toggle) return;
+    
+    // Skip if on rivo.html page (it handles its own toggle)
+    if (window.location.pathname.includes('rivo')) return;
+    
+    // Skip if already initialized
+    if (toggle.dataset.themeInitialized) return;
+    toggle.dataset.themeInitialized = 'true';
 
     const setTheme = (isDark) => {
         if (isDark) {
