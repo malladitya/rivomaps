@@ -518,8 +518,8 @@ document.addEventListener('DOMContentLoaded', () => {
       submitBtn.disabled = true;
 
       // Prepare params
-      const serviceID = 'service_woyyy7'; // User to replace
-      const templateID = 'template_wdigq3e'; // User to replace
+      const serviceID = 'your service id'; // User to replace
+      const templateID = 'your template id'; // User to replace
 
       // Send via EmailJS (sendForm automatically captures input values by name attribute)
       emailjs.sendForm(serviceID, templateID, this)
@@ -527,8 +527,9 @@ document.addEventListener('DOMContentLoaded', () => {
           alert('Message sent successfully!');
           this.reset();
         }, (err) => {
-          alert('Failed to send message. Please try again later.'); // Will trigger until keys are valid
+          // Show detailed error for debugging
           console.error('EmailJS Error:', err);
+          alert(`Failed to send message.\n\nError: ${err.text || err.message || 'Unknown error'}\n\nPlease check:\n1. Service ID and Template ID are correct\n2. Email template has fields: name, email, message\n3. Service is connected and active`);
         })
         .finally(() => {
           submitBtn.innerText = originalText;
