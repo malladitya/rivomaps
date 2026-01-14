@@ -864,6 +864,154 @@
         }
       </script>
       
+      <!-- Navigation Panel (Turn-by-Turn) -->
+      <div id="navigationPanel" class="navigation-panel" style="display: none;">
+        <div class="navigation-header">
+          <h3>🧭 Navigation</h3>
+          <button id="closeNavPanel" class="close-btn">✕</button>
+        </div>
+        <div class="navigation-content">
+          <div class="next-turn">
+            <div class="turn-icon" id="turnIcon">➡️</div>
+            <div class="turn-info">
+              <div class="turn-direction" id="turnDirection">Heading towards destination</div>
+              <div class="turn-distance" id="turnDistance">Calculating...</div>
+            </div>
+          </div>
+          <div class="instructions-list" id="instructionsList" style="margin-top: 20px; display: none;">
+            <h4>📋 Directions</h4>
+            <ol id="directionsOL" style="padding-left: 20px;"></ol>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        .navigation-panel {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          width: 350px;
+          max-width: 90vw;
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+          z-index: 100;
+          font-family: inherit;
+          animation: slideInRight 0.3s ease-out;
+        }
+
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(400px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .navigation-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 15px 20px;
+          border-bottom: 2px solid #f0f0f0;
+          background: linear-gradient(135deg, #0EA5A2 0%, #06B6D4 100%);
+          color: white;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .navigation-header h3 {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .close-btn {
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          font-size: 20px;
+          cursor: pointer;
+          padding: 0;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          transition: background 0.2s;
+        }
+
+        .close-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .navigation-content {
+          padding: 20px;
+        }
+
+        .next-turn {
+          display: flex;
+          gap: 15px;
+          align-items: center;
+        }
+
+        .turn-icon {
+          font-size: 32px;
+          min-width: 40px;
+          text-align: center;
+        }
+
+        .turn-info {
+          flex: 1;
+        }
+
+        .turn-direction {
+          font-size: 14px;
+          font-weight: 600;
+          color: #0EA5A2;
+          margin-bottom: 5px;
+        }
+
+        .turn-distance {
+          font-size: 18px;
+          font-weight: 700;
+          color: #333;
+        }
+
+        .instructions-list {
+          background: #f8f8f8;
+          padding: 12px;
+          border-radius: 8px;
+          border-left: 4px solid #0EA5A2;
+        }
+
+        .instructions-list h4 {
+          margin: 0 0 10px 0;
+          font-size: 12px;
+          color: #666;
+          text-transform: uppercase;
+        }
+
+        .instructions-list ol {
+          margin: 0;
+          font-size: 12px;
+          color: #555;
+        }
+
+        .instructions-list li {
+          margin-bottom: 6px;
+          line-height: 1.4;
+        }
+
+        @media (max-width: 640px) {
+          .navigation-panel {
+            width: calc(100% - 20px);
+            bottom: 10px;
+            right: 10px;
+          }
+        }
+      </style>
+
       <script>
         // Theme Toggle
         (function () {
@@ -921,6 +1069,322 @@
             console.log(`AI Comfort Level: ${(prediction * 100).toFixed(0)}%`);
           }
         }, 5000);
+      </script>
+
+      <!-- AI & Navigation Scripts -->
+      <script src="ai-nlp-engine.js"></script>
+      <script src="ai-action-handler.js"></script>
+      <script src="chatbot-widget.js"></script>
+
+      <!-- Turn-by-Turn Navigation Handler -->
+      <script>
+        // Navigation panel management
+        let navigationState = {
+          routeSegments: [],
+          instructions: [],
+          currentSegmentIndex: 0,
+          nextTurnDistance: 0,
+          nextTurnDirection: '➡️'
+        };
+
+        function updateNavigationPanel() {
+          const navPanel = document.getElementById('navigationPanel');
+          const turnIcon = document.getElementById('turnIcon');
+          const turnDirection = document.getElementById('turnDirection');
+          const turnDistance = document.getElementById('turnDistance');
+
+          if (navigationState.nextTurnDistance > 0) {
+            const iconMap = {
+              'left': '↙️',
+              'right': '↘️',
+              'straight': '⬆️',
+              'arrive': '🎯'
+            };
+            
+            const directionText = {
+              'left': 'Turn LEFT',
+              'right': 'Turn RIGHT',
+              'straight': 'Go STRAIGHT',
+              'arrive': 'You have arrived'
+            };
+
+            turnIcon.textContent = iconMap[navigationState.nextTurnDirection] || '➡️';
+            turnDirection.textContent = directionText[navigationState.nextTurnDirection] || 'Continue';
+            turnDistance.textContent = `${Math.round(navigationState.nextTurnDistance)}m away`;
+          }
+        }
+
+        function showNavigationPanel() {
+          const navPanel = document.getElementById('navigationPanel');
+          navPanel.style.display = 'block';
+
+          const closeBtn = document.getElementById('closeNavPanel');
+          closeBtn.addEventListener('click', () => {
+            navPanel.style.display = 'none';
+          });
+        }
+
+        function hideNavigationPanel() {
+          document.getElementById('navigationPanel').style.display = 'none';
+        }
+
+        // Calculate distance between two coordinates (Haversine formula)
+        function calculateDistance(from, to) {
+          const R = 6371000; // Earth radius in meters
+          const dLat = ((to[1] - from[1]) * Math.PI) / 180;
+          const dLon = ((to[0] - from[0]) * Math.PI) / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((from[1] * Math.PI) / 180) *
+              Math.cos((to[1] * Math.PI) / 180) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c; // Distance in meters
+        }
+
+        // Calculate bearing (compass direction) between two points
+        function calculateBearing(from, to) {
+          const dLon = ((to[0] - from[0]) * Math.PI) / 180;
+          const y = Math.sin(dLon) * Math.cos((to[1] * Math.PI) / 180);
+          const x =
+            Math.cos((from[1] * Math.PI) / 180) * Math.sin((to[1] * Math.PI) / 180) -
+            Math.sin((from[1] * Math.PI) / 180) *
+              Math.cos((to[1] * Math.PI) / 180) *
+              Math.cos(dLon);
+          return (Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+        }
+
+        // Determine turn direction from bearing change
+        function determineTurnDirection(fromBearing, toBearing) {
+          let diff = (toBearing - fromBearing + 360) % 360;
+          if (diff > 180) diff -= 360;
+
+          if (Math.abs(diff) < 30) return 'straight';
+          if (diff < 0) return 'left';
+          return 'right';
+        }
+
+        // Generate turns from route coordinates
+        function generateTurns(routeCoordinates) {
+          if (routeCoordinates.length < 2) return [];
+
+          const segments = [];
+          for (let i = 0; i < routeCoordinates.length - 1; i++) {
+            const from = routeCoordinates[i];
+            const to = routeCoordinates[i + 1];
+            const distance = calculateDistance(from, to);
+            const bearing = calculateBearing(from, to);
+
+            segments.push({
+              from,
+              to,
+              distance,
+              bearing,
+              index: i
+            });
+          }
+
+          // Determine turns
+          const turns = [];
+          for (let i = 0; i < segments.length - 1; i++) {
+            const current = segments[i];
+            const next = segments[i + 1];
+            const turnDirection = determineTurnDirection(current.bearing, next.bearing);
+
+            turns.push({
+              ...current,
+              nextTurnDirection: turnDirection
+            });
+          }
+
+          // Add final segment
+          if (segments.length > 0) {
+            turns.push({
+              ...segments[segments.length - 1],
+              nextTurnDirection: 'arrive'
+            });
+          }
+
+          return turns;
+        }
+
+        // Generate human-readable instructions
+        function generateNavigationInstructions(turns) {
+          if (turns.length === 0) return [];
+
+          const instructions = ['📍 Start and head towards destination'];
+
+          for (let i = 0; i < turns.length - 1; i++) {
+            const turn = turns[i];
+            const directionEmoji = {
+              'left': '↙️',
+              'right': '↘️',
+              'straight': '⬆️'
+            };
+
+            const directionText = {
+              'left': 'Turn left',
+              'right': 'Turn right',
+              'straight': 'Continue straight'
+            };
+
+            instructions.push(
+              `${directionEmoji[turn.nextTurnDirection] || '🛣️'} ${directionText[turn.nextTurnDirection]} after ${Math.round(turn.distance)}m`
+            );
+          }
+
+          instructions.push('🎯 You have arrived');
+          return instructions;
+        }
+
+        // Setup turn-by-turn navigation from route
+        function setupTurnByTurnNavigation(routeCoordinates) {
+          if (!routeCoordinates || routeCoordinates.length < 2) return;
+
+          navigationState.routeSegments = generateTurns(routeCoordinates);
+          navigationState.instructions = generateNavigationInstructions(navigationState.routeSegments);
+          navigationState.currentSegmentIndex = 0;
+
+          console.log('✅ Turn-by-turn navigation setup:', navigationState.instructions);
+
+          // Display instructions in panel
+          const ol = document.getElementById('directionsOL');
+          if (ol) {
+            ol.innerHTML = navigationState.instructions
+              .map((instr) => `<li>${instr}</li>`)
+              .join('');
+            document.getElementById('instructionsList').style.display = 'block';
+          }
+
+          showNavigationPanel();
+          updateNavigationDisplay(routeCoordinates[0], routeCoordinates);
+        }
+
+        // Update navigation display based on current location
+        function updateNavigationDisplay(currentLocation, routeCoordinates) {
+          if (navigationState.routeSegments.length === 0) return;
+
+          // Find closest point on route
+          let minDist = Infinity;
+          let closestSegmentIndex = 0;
+
+          for (let i = 0; i < navigationState.routeSegments.length - 1; i++) {
+            const segment = navigationState.routeSegments[i];
+            const distToNext = calculateDistance(currentLocation, segment.to);
+
+            if (distToNext < minDist) {
+              minDist = distToNext;
+              closestSegmentIndex = i;
+            }
+          }
+
+          navigationState.currentSegmentIndex = closestSegmentIndex;
+          const currentSegment = navigationState.routeSegments[closestSegmentIndex];
+
+          if (currentSegment) {
+            navigationState.nextTurnDirection = currentSegment.nextTurnDirection;
+            navigationState.nextTurnDistance = calculateDistance(
+              currentLocation,
+              currentSegment.to
+            );
+
+            updateNavigationPanel();
+          }
+        }
+
+        // Expose to global scope
+        window.setupTurnByTurnNavigation = setupTurnByTurnNavigation;
+        window.updateNavigationDisplay = updateNavigationDisplay;
+        window.navigationState = navigationState;
+
+        console.log('✅ Turn-by-turn navigation module loaded');
+      </script>
+
+      <!-- Dynamic Route Recalculation -->
+      <script>
+        const liveTracking = {
+          active: false,
+          watchId: null,
+          currentLocation: null,
+          destination: null,
+          lastRecalculatedAt: 0,
+          recalculationThreshold: 50, // meters
+          minRecalculationInterval: 3000 // milliseconds
+        };
+
+        function startLiveLocationTracking(destination) {
+          if (liveTracking.active) {
+            console.log('⚠️ Live tracking already active');
+            return;
+          }
+
+          if (!navigator.geolocation) {
+            console.error('❌ Geolocation not supported');
+            return;
+          }
+
+          liveTracking.destination = destination;
+          liveTracking.active = true;
+
+          console.log('🔴 Live location tracking started');
+
+          liveTracking.watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              const { latitude, longitude, accuracy } = position.coords;
+              liveTracking.currentLocation = [longitude, latitude];
+
+              console.log(`📍 Location updated: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (±${Math.round(accuracy)}m)`);
+
+              // Recalculate route if threshold exceeded
+              const now = Date.now();
+              if (now - liveTracking.lastRecalculatedAt > liveTracking.minRecalculationInterval) {
+                recalculateRouteFromLiveLocation(liveTracking.currentLocation, destination);
+                liveTracking.lastRecalculatedAt = now;
+              }
+            },
+            (error) => {
+              console.error('❌ Geolocation error:', error);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            }
+          );
+        }
+
+        function stopLiveLocationTracking() {
+          if (liveTracking.watchId !== null) {
+            navigator.geolocation.clearWatch(liveTracking.watchId);
+            liveTracking.active = false;
+            liveTracking.watchId = null;
+            console.log('🛑 Live tracking stopped');
+          }
+        }
+
+        function recalculateRouteFromLiveLocation(origin, destination) {
+          if (typeof window.planComfortableRoute === 'function') {
+            console.log('✅ Route recalculated from live location');
+            window.planComfortableRoute(origin, destination, false);
+
+            // Update navigation display if available
+            if (typeof window.updateNavigationDisplay === 'function') {
+              // Get current route from map datasource
+              if (window.currentRouteCoordinates) {
+                window.updateNavigationDisplay(origin, window.currentRouteCoordinates);
+              }
+            }
+          }
+        }
+
+        // Expose to global scope
+        window.startLiveLocationTracking = startLiveLocationTracking;
+        window.stopLiveLocationTracking = stopLiveLocationTracking;
+        window.recalculateRouteFromLiveLocation = recalculateRouteFromLiveLocation;
+        window.liveTracking = liveTracking;
+
+        console.log('✅ Dynamic route recalculation module loaded');
       </script>
 </body>
 
