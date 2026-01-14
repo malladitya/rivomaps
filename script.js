@@ -95,6 +95,40 @@ if ('IntersectionObserver' in window) {
 /* Azure Maps integration */
 let map, datasource, routeLayer;
 
+// Live Location Tracking State
+const liveTracking = {
+  active: false,
+  watchId: null,
+  currentLocation: null,
+  destination: null,
+  lastRecalculatedAt: 0,
+  recalculationThreshold: 50, // meters - recalculate if moved this distance
+  minRecalculationInterval: 3000 // milliseconds - don't recalculate more than once per 3 seconds
+};
+
+// Turn-by-Turn Navigation State
+const navigationState = {
+  routeSegments: [], // Array of route segments with turn info
+  currentSegmentIndex: 0,
+  nextTurnDistance: 0, // Distance to next turn in meters
+  nextTurnDirection: '', // 'left', 'right', 'straight', 'arrive'
+  totalDistanceRemaining: 0,
+  instructions: [] // Array of navigation instructions
+};
+
+// AI Chatbot Assistant State
+const aiAssistant = {
+  conversationHistory: [],
+  currentUserLocation: null,
+  currentDestination: null,
+  suggestedRoutes: [],
+  preferences: {
+    avoidNoisy: true,
+    preferGreenSpaces: true,
+    allowDetours: true
+  }
+};
+
 // Community Reports Storage
 const communityReports = {
   noise: [],
@@ -335,27 +369,524 @@ function initMap() {
 }
 
 // Function to plan and display comfortable route from external form data
-function planComfortableRoute(originCoords, destCoords) {
+function planComfortableRoute(originCoords, destCoords, enableLiveTracking = false) {
   if (!map || !datasource) {
     console.error('Map not initialized');
     return;
   }
 
-  // Clear existing routes and pins
+  // Clear existing routes and pins (but preserve report markers)
+  const reportMarkers = datasource.getShapes().filter(f => {
+    const props = f.getProperties();
+    return props && (props.type === 'noise' || props.type === 'crowd' || props.type === 'construction');
+  });
+
   datasource.clear();
+  reportMarkers.forEach(marker => datasource.add(marker));
 
   // Add new origin and destination pins
-  const origin = new atlas.data.Feature(new atlas.data.Point(originCoords), { name: 'Origin' });
-  const destination = new atlas.data.Feature(new atlas.data.Point(destCoords), { name: 'Destination' });
+  const origin = new atlas.data.Feature(new atlas.data.Point(originCoords), { name: 'Origin', isOrigin: true });
+  const destination = new atlas.data.Feature(new atlas.data.Point(destCoords), { name: 'Destination', isDestination: true });
 
   // Create comfort-aware route avoiding noisy areas
   const comfortRoute = generateComfortRoute(originCoords, destCoords);
+  const routeFeature = new atlas.data.Feature(comfortRoute, { isRoute: true });
 
-  datasource.add([origin, destination, new atlas.data.Feature(comfortRoute)]);
+  datasource.add([origin, destination, routeFeature]);
 
   // Center map on the route
   const bounds = atlas.data.BoundingBox.fromData([origin, destination]);
   map.setCamera({ bounds: bounds, padding: 50 });
+
+  // Extract route coordinates and setup turn-by-turn navigation
+  try {
+    const routeCoordinates = comfortRoute.getCoordinates();
+    if (routeCoordinates && routeCoordinates.length >= 2) {
+      setupTurnByTurnNavigation(routeCoordinates);
+      console.log('🧭 Turn-by-turn navigation initialized with', routeCoordinates.length, 'waypoints');
+    }
+  } catch (error) {
+    console.error('❌ Error setting up turn-by-turn navigation:', error);
+  }
+
+  // Start live tracking if enabled
+  if (enableLiveTracking) {
+    startLiveLocationTracking(destCoords);
+  }
+
+  console.log('🗺️ Route planned from', originCoords, 'to', destCoords);
+}
+
+// Calculate bearing between two coordinates
+function calculateBearing(from, to) {
+  const lat1 = from[1] * Math.PI / 180;
+  const lat2 = to[1] * Math.PI / 180;
+  const dLon = (to[0] - from[0]) * Math.PI / 180;
+  
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const bearing = Math.atan2(y, x) * 180 / Math.PI;
+  
+  return (bearing + 360) % 360; // Normalize to 0-360
+}
+
+// Determine turn direction based on bearing change
+function determineTurnDirection(fromBearing, toBearing) {
+  let turn = toBearing - fromBearing;
+  
+  // Normalize to -180 to 180
+  while (turn > 180) turn -= 360;
+  while (turn < -180) turn += 360;
+  
+  if (Math.abs(turn) < 15) return 'straight';
+  if (turn > 0) return 'left';
+  return 'right';
+}
+
+// Calculate distance between two coordinates in meters (approximate)
+function calculateDistance(from, to) {
+  const R = 6371000; // Earth radius in meters
+  const lat1 = from[1] * Math.PI / 180;
+  const lat2 = to[1] * Math.PI / 180;
+  const dLat = (to[1] - from[1]) * Math.PI / 180;
+  const dLon = (to[0] - from[0]) * Math.PI / 180;
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return R * c; // Distance in meters
+}
+
+// Generate turn-by-turn instructions from route coordinates
+function generateTurns(routeCoordinates) {
+  const turns = [];
+  
+  if (routeCoordinates.length < 2) return turns;
+  
+  // Analyze segments for turns
+  for (let i = 0; i < routeCoordinates.length - 1; i++) {
+    const segment = {
+      from: routeCoordinates[i],
+      to: routeCoordinates[i + 1],
+      distance: calculateDistance(routeCoordinates[i], routeCoordinates[i + 1]),
+      bearing: calculateBearing(routeCoordinates[i], routeCoordinates[i + 1])
+    };
+    
+    if (i > 0) {
+      const prevBearing = calculateBearing(routeCoordinates[i - 1], routeCoordinates[i]);
+      segment.turnDirection = determineTurnDirection(prevBearing, segment.bearing);
+      segment.turnAngle = segment.bearing - prevBearing;
+    } else {
+      segment.turnDirection = 'start';
+    }
+    
+    turns.push(segment);
+  }
+  
+  return turns;
+}
+
+// Generate navigation instructions from turns
+function generateNavigationInstructions(turns) {
+  const instructions = [];
+  let cumulativeDistance = 0;
+  
+  turns.forEach((turn, index) => {
+    const nextTurnDistance = cumulativeDistance;
+    const distanceToNextTurn = index < turns.length - 1 
+      ? turns[index + 1].distance 
+      : 0;
+    
+    let instruction = '';
+    
+    if (turn.turnDirection === 'start') {
+      instruction = `📍 Start and head towards your destination`;
+    } else if (turn.turnDirection === 'straight') {
+      instruction = `🛣️ Continue straight for ${turn.distance.toFixed(0)}m`;
+    } else if (turn.turnDirection === 'left') {
+      instruction = `↙️ Turn left after ${nextTurnDistance.toFixed(0)}m`;
+    } else if (turn.turnDirection === 'right') {
+      instruction = `↘️ Turn right after ${nextTurnDistance.toFixed(0)}m`;
+    }
+    
+    if (index === turns.length - 1) {
+      instruction = `🎯 You have arrived at your destination`;
+    }
+    
+    instructions.push({
+      instruction,
+      distance: nextTurnDistance,
+      direction: turn.turnDirection
+    });
+    
+    cumulativeDistance += turn.distance;
+  });
+  
+  return instructions;
+}
+
+// Update navigation display with current instruction
+function updateNavigationDisplay(currentLocation, routeCoordinates) {
+  if (routeCoordinates.length < 2) return;
+  
+  // Find closest point on route to user
+  let closestIndex = 0;
+  let minDistance = Infinity;
+  
+  routeCoordinates.forEach((coord, idx) => {
+    const dist = calculateDistance(currentLocation, coord);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIndex = idx;
+    }
+  });
+  
+  navigationState.currentSegmentIndex = closestIndex;
+  
+  // Calculate distance to next waypoint
+  if (closestIndex < routeCoordinates.length - 1) {
+    navigationState.nextTurnDistance = calculateDistance(
+      currentLocation,
+      routeCoordinates[closestIndex + 1]
+    );
+  } else {
+    navigationState.nextTurnDistance = 0;
+  }
+  
+  // Determine next turn direction
+  if (closestIndex < routeCoordinates.length - 2) {
+    const from = routeCoordinates[closestIndex];
+    const to = routeCoordinates[closestIndex + 1];
+    const next = routeCoordinates[closestIndex + 2];
+    
+    const bearing1 = calculateBearing(from, to);
+    const bearing2 = calculateBearing(to, next);
+    
+    navigationState.nextTurnDirection = determineTurnDirection(bearing1, bearing2);
+  } else {
+    navigationState.nextTurnDirection = 'arrive';
+  }
+  
+  // Update UI
+  updateNavigationPanel();
+}
+
+// Update navigation panel with turn-by-turn info
+function updateNavigationPanel() {
+  const panelElement = document.getElementById('navigation-panel') || 
+                       document.querySelector('.navigation-panel') ||
+                       document.getElementById('directions-panel');
+  
+  if (!panelElement) return;
+  
+  const distMeters = navigationState.nextTurnDistance.toFixed(0);
+  const distKm = (navigationState.nextTurnDistance / 1000).toFixed(1);
+  
+  let directionIcon = '🛣️';
+  let turnText = 'Continue straight';
+  
+  if (navigationState.nextTurnDirection === 'left') {
+    directionIcon = '↙️';
+    turnText = 'Turn left';
+  } else if (navigationState.nextTurnDirection === 'right') {
+    directionIcon = '↘️';
+    turnText = 'Turn right';
+  } else if (navigationState.nextTurnDirection === 'arrive') {
+    directionIcon = '🎯';
+    turnText = 'You have arrived';
+  }
+  
+  const html = `
+    <div style="padding: 20px; background: linear-gradient(135deg, #0EA5A2 0%, #06B6D4 100%); color: white; border-radius: 8px; font-family: 'Poppins', sans-serif;">
+      <div style="font-size: 48px; margin-bottom: 10px; text-align: center;">${directionIcon}</div>
+      <h2 style="margin: 0 0 15px 0; font-size: 22px; text-align: center;">${turnText}</h2>
+      <div style="font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 10px;">
+        ${distMeters}m
+      </div>
+      <p style="margin: 0; text-align: center; opacity: 0.9; font-size: 14px;">
+        ${distKm}km to next turn
+      </p>
+      <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+        <p style="margin: 0; font-size: 12px; opacity: 0.8;">
+          📍 Current segment: ${navigationState.currentSegmentIndex + 1}
+        </p>
+      </div>
+    </div>
+  `;
+  
+  panelElement.innerHTML = html;
+}
+
+// Setup turn-by-turn navigation from route coordinates
+function setupTurnByTurnNavigation(routeCoordinates) {
+  navigationState.routeSegments = generateTurns(routeCoordinates);
+  navigationState.instructions = generateNavigationInstructions(navigationState.routeSegments);
+  
+  console.log('📍 Turn-by-turn navigation setup');
+  console.log('  Segments:', navigationState.routeSegments.length);
+  console.log('  Instructions:', navigationState.instructions);
+  
+  // Display instructions list
+  const instPanel = document.getElementById('instructions-list');
+  if (instPanel) {
+    let html = '<div style="font-size: 14px;">';
+    navigationState.instructions.forEach((inst, idx) => {
+      html += `<div style="padding: 8px; border-bottom: 1px solid #e0e0e0;">
+        ${idx + 1}. ${inst.instruction}
+      </div>`;
+    });
+    html += '</div>';
+    instPanel.innerHTML = html;
+  }
+}
+
+// ============================================
+// 🤖 AI CHATBOT ASSISTANT FUNCTIONS
+// ============================================
+
+// Parse user message for location extraction
+function extractLocations(message) {
+  const locations = {
+    type: null,
+    value: null,
+    confidence: 0
+  };
+
+  const message_lower = message.toLowerCase();
+
+  // Check for destination keywords
+  if (message_lower.includes('go to') || message_lower.includes('head to') || message_lower.includes('navigate to')) {
+    locations.type = 'destination';
+  } else if (message_lower.includes('from') || message_lower.includes('starting from') || message_lower.includes('my location')) {
+    locations.type = 'origin';
+  } else if (message_lower.includes('current location') || message_lower.includes('where am i')) {
+    locations.type = 'query';
+  }
+
+  // Extract coordinate-like patterns
+  const coordPattern = /\b(\d+\.\d+),\s*(\d+\.\d+)\b/;
+  const coordMatch = message.match(coordPattern);
+  
+  if (coordMatch) {
+    locations.value = [parseFloat(coordMatch[2]), parseFloat(coordMatch[1])]; // [lon, lat]
+    locations.confidence = 0.95;
+  } else {
+    // Try to extract place names
+    const placePatterns = [
+      { name: 'Delhi', coords: [77.2095, 28.7041] },
+      { name: 'Chandigarh', coords: [76.7794, 30.7333] },
+      { name: 'Ghaziabad', coords: [77.4538, 28.6692] },
+      { name: 'Noida', coords: [77.3910, 28.5921] },
+      { name: 'Panipat', coords: [79.3910, 29.3910] }
+    ];
+
+    for (let place of placePatterns) {
+      if (message_lower.includes(place.name.toLowerCase())) {
+        locations.value = place.coords;
+        locations.confidence = 0.85;
+        break;
+      }
+    }
+  }
+
+  return locations;
+}
+
+// Process user message and generate AI response
+function processUserMessage(userMessage) {
+  // Add to conversation history
+  aiAssistant.conversationHistory.push({
+    role: 'user',
+    message: userMessage,
+    timestamp: new Date()
+  });
+
+  // Extract locations from message
+  const locations = extractLocations(userMessage);
+  const message_lower = userMessage.toLowerCase();
+  let response = '';
+  let action = null;
+
+  // Route suggestion
+  if (message_lower.includes('suggest') || message_lower.includes('best route') || message_lower.includes('route option')) {
+    response = generateRoutesuggestion();
+    action = 'showRoutes';
+  }
+  // Set destination
+  else if (locations.type === 'destination' && locations.value) {
+    aiAssistant.currentDestination = locations.value;
+    response = `📍 Destination set to [${locations.value[0].toFixed(4)}, ${locations.value[1].toFixed(4)}]. Ready to navigate!`;
+    action = 'setDestination';
+  }
+  // Set origin/current location
+  else if (locations.type === 'origin' && locations.value) {
+    aiAssistant.currentUserLocation = locations.value;
+    response = `📌 Current location updated to [${locations.value[0].toFixed(4)}, ${locations.value[1].toFixed(4)}].`;
+    action = 'setOrigin';
+  }
+  // Query current location
+  else if (locations.type === 'query') {
+    if (aiAssistant.currentUserLocation) {
+      response = `📍 Your current location: [${aiAssistant.currentUserLocation[0].toFixed(4)}, ${aiAssistant.currentUserLocation[1].toFixed(4)}]`;
+    } else {
+      response = `📍 No current location set. Please share your current location to get started.`;
+    }
+    action = 'showLocation';
+  }
+  // Navigation help
+  else if (message_lower.includes('help') || message_lower.includes('how') || message_lower.includes('what')) {
+    response = generateHelpResponse();
+    action = 'showHelp';
+  }
+  // Start navigation
+  else if (message_lower.includes('navigate') || message_lower.includes('start') || message_lower.includes('go')) {
+    if (aiAssistant.currentUserLocation && aiAssistant.currentDestination) {
+      response = `🧭 Starting navigation from [${aiAssistant.currentUserLocation[0].toFixed(4)}, ${aiAssistant.currentUserLocation[1].toFixed(4)}] to [${aiAssistant.currentDestination[0].toFixed(4)}, ${aiAssistant.currentDestination[1].toFixed(4)}]. Generating sensory-friendly route...`;
+      action = 'startNavigation';
+    } else {
+      response = `⚠️ Please set both your current location and destination first.`;
+      action = 'missingInfo';
+    }
+  }
+  // Default response
+  else {
+    response = generateSmartResponse(userMessage);
+    action = 'general';
+  }
+
+  // Add assistant response to history
+  aiAssistant.conversationHistory.push({
+    role: 'assistant',
+    message: response,
+    action: action,
+    timestamp: new Date()
+  });
+
+  return {
+    response,
+    action,
+    currentLocation: aiAssistant.currentUserLocation,
+    currentDestination: aiAssistant.currentDestination
+  };
+}
+
+// Generate smart response based on user message
+function generateSmartResponse(userMessage) {
+  const responses = [
+    `I understand you want help with navigation. I can help you find sensory-friendly routes! 🧭`,
+    `That's a great question! I'm here to help you navigate comfortably. What would you like to know? 😊`,
+    `Let me help! I can suggest routes, update your location, or answer navigation questions.`,
+    `I'm here to assist! You can tell me your destination, and I'll find you a comfortable route. 🗺️`
+  ];
+
+  return responses[Math.floor(Math.random() * responses.length)];
+}
+
+// Generate route suggestion
+function generateRoutesuggestion() {
+  if (!aiAssistant.currentUserLocation || !aiAssistant.currentDestination) {
+    return '⚠️ Please set your location and destination to get route suggestions.';
+  }
+
+  const distance = calculateDistance(aiAssistant.currentUserLocation, aiAssistant.currentDestination);
+  const distanceKm = (distance / 1000).toFixed(1);
+  const estimatedTime = Math.ceil(distance / 1000 / 5); // Assume 5 km/h for comfort
+
+  return `🧭 Route Suggestions:\n\n` +
+    `📍 Origin: [${aiAssistant.currentUserLocation[0].toFixed(4)}, ${aiAssistant.currentUserLocation[1].toFixed(4)}]\n` +
+    `🎯 Destination: [${aiAssistant.currentDestination[0].toFixed(4)}, ${aiAssistant.currentDestination[1].toFixed(4)}]\n\n` +
+    `📊 Route Details:\n` +
+    `• Distance: ${distanceKm} km\n` +
+    `• Est. Time: ${estimatedTime} minutes\n` +
+    `• Type: Sensory-Friendly (avoiding noisy areas)\n` +
+    `• Comfort Level: High ✅\n\n` +
+    `Ready to navigate? Say "start navigation" or "begin".`;
+}
+
+// Generate help response
+function generateHelpResponse() {
+  return `🤖 Welcome to Rivo AI Navigation Assistant!\n\n` +
+    `I can help you with:\n\n` +
+    `📍 SET LOCATION:\n` +
+    `• "My location is [coords or place name]"\n` +
+    `• "I'm at Ghaziabad"\n\n` +
+    `🎯 SET DESTINATION:\n` +
+    `• "Take me to Delhi"\n` +
+    `• "Navigate to Chandigarh"\n` +
+    `• "Go to [77.2095, 28.7041]"\n\n` +
+    `🧭 GET ROUTES:\n` +
+    `• "Suggest routes"\n` +
+    `• "Best route options"\n` +
+    `• "Find sensory-friendly path"\n\n` +
+    `▶️ START NAVIGATION:\n` +
+    `• "Start navigation"\n` +
+    `• "Begin journey"\n` +
+    `• "Let's go"\n\n` +
+    `📍 CURRENT STATUS:\n` +
+    `• "Where am I?"\n` +
+    `• "Show my location"\n\n` +
+    `Try asking: "Take me to Delhi"`;
+}
+
+// Get AI response and execute action
+function getAIResponse(userMessage) {
+  const result = processUserMessage(userMessage);
+  
+  // Execute action if needed
+  if (result.action === 'startNavigation' && result.currentLocation && result.currentDestination) {
+    // Plan route with live tracking
+    planComfortableRoute(result.currentLocation, result.currentDestination, true);
+  }
+
+  return result;
+}
+
+// Display chatbot message in UI
+function displayChatMessage(role, message) {
+  const chatBox = document.getElementById('chat-box') || document.querySelector('.chat-messages');
+  if (!chatBox) return;
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `chat-message ${role}`;
+  messageDiv.style.cssText = `
+    margin: 10px 0;
+    padding: 12px 15px;
+    border-radius: 8px;
+    max-width: 80%;
+    ${role === 'user' 
+      ? 'background: #0EA5A2; color: white; margin-left: auto; text-align: right;' 
+      : 'background: #f0f0f0; color: #333;'}
+  `;
+  messageDiv.textContent = message;
+  chatBox.appendChild(messageDiv);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Handle user input from chatbot interface
+function handleChatInput(inputElement) {
+  const message = inputElement.value.trim();
+  if (!message) return;
+
+  // Display user message
+  displayChatMessage('user', message);
+  inputElement.value = '';
+
+  // Get AI response
+  const result = getAIResponse(message);
+  
+  // Display AI response
+  displayChatMessage('assistant', result.response);
+
+  // Log for debugging
+  console.log('💬 Chat Message:', {
+    user: message,
+    assistant: result.response,
+    action: result.action,
+    currentLocation: result.currentLocation,
+    currentDestination: result.currentDestination
+  });
 }
 
 // Generate comfort-aware route that avoids noisy zones
@@ -390,6 +921,168 @@ function generateComfortRoute(origin, dest) {
   }
 }
 
+// Start live location tracking with dynamic route recalculation
+function startLiveLocationTracking(destinationCoords) {
+  if (!navigator.geolocation) {
+    console.error('Geolocation not supported');
+    return;
+  }
+
+  liveTracking.destination = destinationCoords;
+  liveTracking.active = true;
+
+  if (liveTracking.watchId) {
+    navigator.geolocation.clearWatch(liveTracking.watchId);
+  }
+
+  console.log('🔴 Live location tracking started');
+
+  liveTracking.watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      liveTracking.currentLocation = [longitude, latitude];
+
+      // Update user location marker on map
+      updateLiveLocationMarker([longitude, latitude], accuracy);
+
+      // Check if distance threshold exceeded for recalculation
+      const now = Date.now();
+      const timeSinceLastCalc = now - liveTracking.lastRecalculatedAt;
+
+      if (timeSinceLastCalc >= liveTracking.minRecalculationInterval) {
+        // Recalculate route with new origin
+        recalculateRouteFromLiveLocation([longitude, latitude], liveTracking.destination);
+        liveTracking.lastRecalculatedAt = now;
+
+        // Log movement details
+        console.log(`📍 Location updated: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (±${accuracy.toFixed(0)}m)`);
+      }
+    },
+    (error) => {
+      console.error('❌ Geolocation error:', error.message);
+      const errorMsg = error.code === error.PERMISSION_DENIED 
+        ? 'Location permission denied' 
+        : error.code === error.POSITION_UNAVAILABLE 
+        ? 'Position unavailable' 
+        : 'Location request timed out';
+      alert(`Location Error: ${errorMsg}`);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+// Stop live location tracking
+function stopLiveLocationTracking() {
+  if (liveTracking.watchId) {
+    navigator.geolocation.clearWatch(liveTracking.watchId);
+    liveTracking.watchId = null;
+    liveTracking.active = false;
+    console.log('⭕ Live location tracking stopped');
+  }
+}
+
+// Update user location marker with accuracy indicator
+function updateLiveLocationMarker(coords, accuracy) {
+  if (!map || !datasource) return;
+
+  // Remove old user location marker
+  const existingFeatures = datasource.getShapes().filter(f => f.getProperties().isUserLocation);
+  existingFeatures.forEach(f => datasource.remove(f));
+
+  // Add new user location marker with accuracy circle
+  const userMarker = new atlas.data.Feature(new atlas.data.Point(coords), {
+    isUserLocation: true,
+    accuracy: accuracy,
+    name: 'Your Location'
+  });
+
+  datasource.add(userMarker);
+
+  // Center map on user (optional - comment out if too distracting)
+  // map.setCamera({ center: coords, zoom: 14 });
+}
+
+// Recalculate route from live location
+function recalculateRouteFromLiveLocation(currentCoords, destinationCoords) {
+  if (!map || !datasource || !liveTracking.destination) return;
+
+  // Generate new comfort route from current location
+  const newRoute = generateComfortRoute(currentCoords, destinationCoords);
+  const routeCoordinates = newRoute.getCoordinates();
+
+  // Remove old route from datasource
+  const existingRoutes = datasource.getShapes().filter(f => f.getProperties() && f.getProperties().isRoute);
+  existingRoutes.forEach(f => datasource.remove(f));
+
+  // Add new route with property marker
+  const routeFeature = new atlas.data.Feature(newRoute, { isRoute: true });
+  datasource.add(routeFeature);
+
+  console.log(`✅ Route recalculated from live location`);
+  
+  // Setup turn-by-turn navigation
+  setupTurnByTurnNavigation(routeCoordinates);
+  
+  // Update navigation display with current location
+  updateNavigationDisplay(currentCoords, routeCoordinates);
+  
+  // Update directions panel if it exists
+  updateDirectionsPanel(currentCoords, destinationCoords, newRoute);
+}
+
+// Update directions panel with route info (optional)
+function updateDirectionsPanel(origin, destination, routeFeature) {
+  const panelElement = document.getElementById('directions-panel');
+  if (!panelElement) return;
+
+  // Calculate simple distance estimate (in degrees, approximate to km)
+  const coords = routeFeature.getCoordinates();
+  let totalDistance = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const dx = coords[i + 1][0] - coords[i][0];
+    const dy = coords[i + 1][1] - coords[i][1];
+    totalDistance += Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  // Rough conversion: 1 degree ≈ 111 km at equator
+  const distanceKm = (totalDistance * 111).toFixed(1);
+  const estimatedTime = Math.ceil((totalDistance * 111) / 60); // assume 60 km/h avg
+
+  panelElement.innerHTML = `
+    <div style="padding: 15px; background: linear-gradient(135deg, #0EA5A2 0%, #06B6D4 100%); color: white; border-radius: 8px;">
+      <h3 style="margin: 0 0 10px 0; font-size: 16px;">📍 Sensory-Friendly Route</h3>
+      <p style="margin: 5px 0;"><strong>Distance:</strong> ${distanceKm} km</p>
+      <p style="margin: 5px 0;"><strong>Est. Time:</strong> ${estimatedTime} min</p>
+      <p style="margin: 5px 0; font-size: 12px; opacity: 0.9;">🟢 Route avoids noisy/crowded areas</p>
+    </div>
+  `;
+}
+
+// Expose live tracking functions globally
+window.startLiveLocationTracking = startLiveLocationTracking;
+window.stopLiveLocationTracking = stopLiveLocationTracking;
+window.liveTracking = liveTracking;
+
+// Expose navigation functions globally
+window.navigationState = navigationState;
+window.setupTurnByTurnNavigation = setupTurnByTurnNavigation;
+window.updateNavigationDisplay = updateNavigationDisplay;
+window.updateNavigationPanel = updateNavigationPanel;
+window.calculateDistance = calculateDistance;
+window.calculateBearing = calculateBearing;
+
+// Expose AI chatbot functions globally
+window.aiAssistant = aiAssistant;
+window.processUserMessage = processUserMessage;
+window.getAIResponse = getAIResponse;
+window.displayChatMessage = displayChatMessage;
+window.handleChatInput = handleChatInput;
+window.extractLocations = extractLocations;
+
 // Expose function globally for external access
 window.planComfortableRoute = planComfortableRoute;
 //FEDBACK
@@ -410,6 +1103,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Only run on index.html (check for Azure Maps element)
   if (document.getElementById('azureMap')) {
     const findRouteBtn = document.getElementById('findRouteBtn');
+    const startTrackingBtn = document.getElementById('startTrackingBtn');
+    const stopTrackingBtn = document.getElementById('stopTrackingBtn');
+
     if (findRouteBtn && window.planComfortableRoute) {
       findRouteBtn.addEventListener('click', () => {
         const originInput = document.getElementById('startInput');
@@ -418,8 +1114,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (originInput && destInput) {
           const origin = [77.4538, 28.6692];
           const destination = [77.4316, 28.6384];
-          window.planComfortableRoute(origin, destination);
+          // Enable live tracking on route planning
+          window.planComfortableRoute(origin, destination, true);
         }
+      });
+    }
+
+    // Live tracking controls
+    if (startTrackingBtn) {
+      startTrackingBtn.addEventListener('click', () => {
+        const destination = liveTracking.destination || [77.4316, 28.6384];
+        window.startLiveLocationTracking(destination);
+        startTrackingBtn.disabled = true;
+        if (stopTrackingBtn) stopTrackingBtn.disabled = false;
+      });
+    }
+
+    if (stopTrackingBtn) {
+      stopTrackingBtn.addEventListener('click', () => {
+        window.stopLiveLocationTracking();
+        stopTrackingBtn.disabled = true;
+        if (startTrackingBtn) startTrackingBtn.disabled = false;
       });
     }
   }
