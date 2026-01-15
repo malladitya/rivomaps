@@ -18,6 +18,9 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
+
+# Old subdirectory (files moved to root)
+rivomaps/
 *.swp
 *.swo
 *~
