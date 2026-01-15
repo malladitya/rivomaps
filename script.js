@@ -1138,6 +1138,35 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
+  
+  // Welcome popup handlers
+  const welcomePopup = document.getElementById('welcomePopup');
+  const welcomeCloseBtn = document.querySelector('.welcome-close');
+  const welcomeGetStartedBtn = document.querySelector('.welcome-btn');
+  
+  if (welcomePopup && welcomeCloseBtn) {
+    welcomeCloseBtn.addEventListener('click', () => {
+      welcomePopup.style.display = 'none';
+      localStorage.setItem('welcomeShown', 'true');
+    });
+  }
+  
+  if (welcomePopup && welcomeGetStartedBtn) {
+    welcomeGetStartedBtn.addEventListener('click', () => {
+      welcomePopup.style.display = 'none';
+      localStorage.setItem('welcomeShown', 'true');
+      // Scroll to features or demo section
+      const featuresSection = document.getElementById('features');
+      if (featuresSection) {
+        featuresSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  }
+  
+  // Show welcome popup if not shown before
+  if (welcomePopup && !localStorage.getItem('welcomeShown')) {
+    welcomePopup.style.display = 'flex';
+  }
 });
 
 // Geolocation and Redirection for index.html Demo
@@ -1253,3 +1282,133 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Global helper functions for onclick handlers and external access
+window.goToReportZone = function(type) {
+  if (!navigator.geolocation) {
+    alert('❌ Location not supported by your browser');
+    return;
+  }
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const coords = [position.coords.longitude, position.coords.latitude];
+      console.log('Report location:', coords);
+      
+      if (type === 'noise') {
+        if (typeof reportNoiseZone === 'function') {
+          reportNoiseZone(coords, 0.9, 'User reported noise');
+          alert('✅ Thank you! Noise report submitted at your location.');
+        }
+      } else if (type === 'crowd') {
+        if (typeof reportCrowdedArea === 'function') {
+          reportCrowdedArea(coords, 0.8, 'User reported crowd');
+          alert('✅ Thank you! Crowd report submitted at your location.');
+        }
+      }
+    },
+    (error) => {
+      console.error('Location error:', error);
+      if (error.code === 1) {
+        alert('❌ Please allow location access in your browser settings');
+      } else if (error.code === 2) {
+        alert('❌ Location unavailable. Please try again.');
+      } else {
+        alert('❌ Location timeout. Please try again.');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+};
+
+window.checkComfort = function() {
+  if (!navigator.geolocation) {
+    if (typeof comfortAI !== 'undefined' && comfortAI.predict) {
+      const comfort = comfortAI.predict([77.4538, 28.6692], Date.now());
+      const percentage = (comfort * 100).toFixed(0);
+      alert(`😊 Comfort Level: ${percentage}%`);
+    } else {
+      alert('❌ Comfort AI not available');
+    }
+    return;
+  }
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const coords = [position.coords.longitude, position.coords.latitude];
+      console.log('Checking comfort at:', coords);
+      
+      if (typeof comfortAI !== 'undefined' && comfortAI.predict) {
+        const comfort = comfortAI.predict(coords, Date.now());
+        const percentage = (comfort * 100).toFixed(0);
+        let emoji = '😊';
+        let message = 'Great!';
+        if (comfort < 0.3) { emoji = '😰'; message = 'High stress'; }
+        else if (comfort < 0.6) { emoji = '😐'; message = 'Moderate'; }
+        alert(`${emoji} Comfort Level: ${percentage}%\n${message}`);
+      } else {
+        alert('❌ Comfort AI not available');
+      }
+    },
+    (error) => {
+      console.error('Location error:', error);
+      if (typeof comfortAI !== 'undefined' && comfortAI.predict) {
+        const comfort = comfortAI.predict([77.4538, 28.6692], Date.now());
+        const percentage = (comfort * 100).toFixed(0);
+        alert(`😊 Comfort Level: ${percentage}%\n(Using default location)`);
+      } else {
+        alert('❌ Comfort AI not available');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+};
+
+window.reportCurrentLocation = function(type) {
+  if (!navigator.geolocation) {
+    alert('❌ Location not supported by your browser');
+    return;
+  }
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const coords = [position.coords.longitude, position.coords.latitude];
+      console.log('Location:', coords);
+      
+      if (type === 'noise') {
+        if (typeof reportNoiseZone === 'function') {
+          reportNoiseZone(coords, 0.9, 'User reported noise');
+          alert('✅ Thank you! Noise report submitted at your location.');
+        }
+      } else if (type === 'crowd') {
+        if (typeof reportCrowdedArea === 'function') {
+          reportCrowdedArea(coords, 0.8, 'User reported crowd');
+          alert('✅ Thank you! Crowd report submitted at your location.');
+        }
+      }
+    },
+    (error) => {
+      console.error('Location error:', error);
+      if (error.code === 1) {
+        alert('❌ Please allow location access in your browser settings');
+      } else if (error.code === 2) {
+        alert('❌ Location unavailable. Please try again.');
+      } else {
+        alert('❌ Location timeout. Please try again.');
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+};
