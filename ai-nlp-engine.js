@@ -25,6 +25,7 @@ class AIUnderstandingEngine {
       GET_ROUTE: { patterns: ['route', 'directions', 'how do i get', 'way to', 'path to', 'show route'], priority: 8 },
       GET_COMFORT: { patterns: ['comfort level', 'sensory', 'how comfortable', 'stress level', 'noise', 'crowd'], priority: 7 },
       CHECK_TIME: { patterns: ['how long', 'time', 'duration', 'arrive', 'eta'], priority: 6 },
+      REPORT_NOISE: { patterns: ['report noise', 'report a noise', 'how to report', 'report a zone', 'report zone', 'noise report', 'how do i report'], priority: 8 },
       HELP: { patterns: ['help', 'what can you do', 'commands', 'guide', 'how to'], priority: 5 },
       START_NAV: { patterns: ['start', 'begin', 'navigate', 'let\'s go', 'start navigation'], priority: 8 },
       AVOID_AREA: { patterns: ['avoid', 'skip', 'don\'t go', 'no', 'stay away'], priority: 7 },
@@ -311,8 +312,25 @@ class AIUnderstandingEngine {
 • "Show me route" - Get directions
 • "Comfort level" - Check sensory comfort
 • "Avoid [area]" - Skip certain areas
+• "Report noise" - Learn how to report noisy zones
 • "Start navigation" - Begin guided tour`;
         action = 'SHOW_HELP';
+        break;
+
+      case 'REPORT_NOISE':
+        message = `📋 Here's how to report a noise zone:
+
+1️⃣ Scroll down to "Report a Zone" section
+2️⃣ Enter the location name OR click the location button for current position
+3️⃣ Select 🔊 "Noise Zone" from the dropdown menu
+4️⃣ Click the "Report Zone" button
+5️⃣ Your report helps other users avoid noisy areas!
+
+💡 Tips:
+• Reports stay active for 5 minutes for verification
+• Community reports make Rivo better for everyone
+• You can report multiple zones if needed`;
+        action = 'SHOW_REPORT_GUIDE';
         break;
 
       case 'GREET':
