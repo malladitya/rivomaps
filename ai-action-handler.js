@@ -51,6 +51,14 @@ window.handleAIAction = function(aiResponse) {
       // Help message is already displayed
       break;
       
+    case 'SHOW_REPORT_GUIDE':
+      // Scroll to report zone section
+      const reportSection = document.getElementById('report-zone');
+      if (reportSection) {
+        reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      break;
+      
     default:
       console.log('Unknown action:', action);
   }
