@@ -59,6 +59,10 @@ window.handleAIAction = function(aiResponse) {
       }
       break;
       
+    case 'SHOW_VISION':
+      // Vision message is already displayed
+      break;
+      
     default:
       console.log('Unknown action:', action);
   }
@@ -92,7 +96,7 @@ function handleSetOrigin(location) {
   const lat = location.lat || location[1];
   const lng = location.lng || location[0];
   
-  // Add marker to map via global planComfortableRoute or direct map access
+  // Add marker to map via Azure Maps
   if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
     const originFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
       name: 'Origin', 
@@ -100,6 +104,20 @@ function handleSetOrigin(location) {
     });
     window.datasource.add(originFeature);
     console.log('✅ Origin marker added to map at:', lat, lng);
+  }
+
+  // Leaflet (rivo.html) support
+  try {
+    if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+      if (typeof startCoords !== 'undefined') {
+        startCoords = [lng, lat];
+      }
+      if (typeof startMarker !== 'undefined' && startMarker) {
+        startMarker.setLatLng([lat, lng]);
+      }
+    }
+  } catch (error) {
+    console.warn('Leaflet origin update failed:', error);
   }
   
   // Log for debugging
@@ -119,7 +137,7 @@ function handleSetDestination(location) {
   const lat = location.lat || location[1];
   const lng = location.lng || location[0];
   
-  // Add destination marker to map
+  // Add destination marker to Azure Maps
   if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
     const destFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
       name: 'Destination', 
@@ -127,6 +145,20 @@ function handleSetDestination(location) {
     });
     window.datasource.add(destFeature);
     console.log('✅ Destination marker added to map at:', lat, lng);
+  }
+
+  // Leaflet (rivo.html) support
+  try {
+    if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+      if (typeof endCoords !== 'undefined') {
+        endCoords = [lng, lat];
+      }
+      if (typeof endMarker !== 'undefined' && endMarker) {
+        endMarker.setLatLng([lat, lng]);
+      }
+    }
+  } catch (error) {
+    console.warn('Leaflet destination update failed:', error);
   }
   
   console.log('✅ Destination set:', location);
@@ -150,7 +182,30 @@ function handleCalculateRoute(data) {
   
   console.log('Route from:', originCoords, 'to:', destCoords);
   
-  // Trigger route calculation via the global planComfortableRoute function
+  // Leaflet (rivo.html) route calculation
+  if (typeof calculateAndDisplayRoute === 'function') {
+    try {
+      if (typeof startCoords !== 'undefined') {
+        startCoords = originCoords;
+      }
+      if (typeof endCoords !== 'undefined') {
+        endCoords = destCoords;
+      }
+      if (typeof startMarker !== 'undefined' && startMarker) {
+        startMarker.setLatLng([originCoords[1], originCoords[0]]);
+      }
+      if (typeof endMarker !== 'undefined' && endMarker) {
+        endMarker.setLatLng([destCoords[1], destCoords[0]]);
+      }
+      calculateAndDisplayRoute(false);
+      console.log('🛣️ Route displayed on Leaflet map');
+      return;
+    } catch (error) {
+      console.warn('Leaflet route calculation failed:', error);
+    }
+  }
+
+  // Trigger route calculation via the global planComfortableRoute function (Azure Maps)
   if (typeof window.planComfortableRoute === 'function') {
     window.planComfortableRoute(originCoords, destCoords, false);
     console.log(`🛣️ Route displayed on map (${preference} preference)`);

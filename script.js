@@ -832,6 +832,27 @@ function generateHelpResponse() {
 
 // Get AI response and execute action
 function getAIResponse(userMessage) {
+  // Use the AI Understanding Engine if available
+  if (typeof AIUnderstandingEngine !== 'undefined') {
+    if (!window.aiEngine) {
+      window.aiEngine = new AIUnderstandingEngine();
+    }
+    const aiResult = window.aiEngine.processUserMessage(userMessage);
+    
+    // Execute action if needed
+    if (aiResult.action && window.handleAIAction) {
+      window.handleAIAction(aiResult);
+    }
+    
+    return {
+      response: aiResult.message,
+      action: aiResult.action,
+      intent: aiResult.intent,
+      confidence: aiResult.confidence
+    };
+  }
+  
+  // Fallback to old system
   const result = processUserMessage(userMessage);
   
   // Execute action if needed

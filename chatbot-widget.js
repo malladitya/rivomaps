@@ -398,6 +398,98 @@
         }
     };
 
+    // Initialize AI Engine with optional Gemini
+    let aiEngine = null;
+    let geminiLoaded = false;
+    
+    // Try to initialize Gemini
+    window.initializeGeminiAI = async function(apiKey) {
+        try {
+            console.log('🔄 Attempting to initialize Gemini AI...');
+            
+            // Check if GoogleGenerativeAI is available
+            if (typeof window.GoogleGenerativeAI === 'undefined') {
+                console.log('📦 Loading Gemini SDK from CDN...');
+                
+                // Dynamically import from CDN
+                const module = await import('https://esm.run/@google/generative-ai');
+                window.GoogleGenerativeAI = module.GoogleGenerativeAI;
+                console.log('✅ Gemini SDK loaded');
+            }
+            
+            // Initialize AI engine with Gemini
+            if (typeof AIUnderstandingEngine !== 'undefined') {
+                aiEngine = new AIUnderstandingEngine(apiKey);
+                geminiLoaded = true;
+                console.log('✅ Gemini AI initialized successfully with key:', apiKey.substring(0, 10) + '...');
+                
+                // Add notification
+                const messagesDiv = document.getElementById('harbor-messages');
+                if (messagesDiv) {
+                    const notif = document.createElement('div');
+                    notif.className = 'harbor-message assistant';
+                    notif.innerHTML = `<div class="harbor-bubble">🚀 Gemini AI activated! I can now understand complex queries and control the map.</div>`;
+                    messagesDiv.appendChild(notif);
+                }
+                
+                return true;
+            } else {
+                console.error('❌ AIUnderstandingEngine not found');
+                initializeFallbackAI();
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Gemini initialization failed:', error);
+            initializeFallbackAI();
+            return false;
+        }
+    };
+    
+    function initializeFallbackAI() {
+        if (typeof AIUnderstandingEngine !== 'undefined') {
+            aiEngine = new AIUnderstandingEngine();
+            console.log('✅ Fallback AI initialized (pattern matching)');
+        } else {
+            console.warn('⚠️ No AI engine available');
+        }
+    }
+    
+    // Initialize on load with retry mechanism
+    window.addEventListener('load', async function() {
+        console.log('🚀 Page loaded, initializing AI...');
+        
+        // Wait for AI engine to be available (with timeout)
+        let retries = 0;
+        const maxRetries = 10;
+        
+        while (typeof AIUnderstandingEngine === 'undefined' && retries < maxRetries) {
+            console.log(`⏳ Waiting for AIUnderstandingEngine... (attempt ${retries + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 200));
+            retries++;
+        }
+        
+        if (typeof AIUnderstandingEngine === 'undefined') {
+            console.error('❌ AIUnderstandingEngine not found after waiting');
+            console.log('⚠️ Using basic fallback (knowledge base only)');
+            return;
+        }
+        
+        console.log('✅ AIUnderstandingEngine found!');
+        
+        // Try Gemini first (user should set their API key here)
+        const geminiApiKey = "AIzaSyAW7APyJgT4xNDCD9vFwY1jjnfi74ozNtE";
+        
+        if (geminiApiKey && geminiApiKey !== "YOUR_API_KEY_HERE") {
+            const success = await window.initializeGeminiAI(geminiApiKey);
+            if (!success) {
+                console.log('⚠️ Gemini failed, using fallback');
+            }
+        } else {
+            console.log('⚠️ No API key found, using fallback AI');
+            initializeFallbackAI();
+        }
+    });
+
     // Global functions
     window.toggleHarborChatbot = function() {
         const widget = document.getElementById('harbor-chatbot-widget');
@@ -416,7 +508,7 @@
         }
     };
 
-    window.sendHarborMessage = function() {
+    window.sendHarborMessage = async function() {
         const input = document.getElementById('harbor-input');
         const message = input.value.trim();
         
@@ -431,13 +523,100 @@
         userMsgDiv.innerHTML = `<div class="harbor-bubble">${window.escapeHtml(message)}</div>`;
         messagesDiv.appendChild(userMsgDiv);
 
-        // Get response from knowledge base
-        let responseText = harborKnowledge.getResponse(message);
-        
-        console.log('🤖 Harbor Response:', {
-            userMessage: message,
-            response: responseText
+        // Clear input and scroll immediately
+        input.value = '';
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        // Show typing indicator
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'harbor-message assistant';
+        typingDiv.id = 'typing-indicator';
+        typingDiv.innerHTML = `<div class="harbor-bubble">💭 Thinking...</div>`;
+        messagesDiv.appendChild(typingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        let responseText = '';
+        let aiResponse = null;
+
+        console.log('🔍 AI Engine status:', {
+            aiEngineExists: !!aiEngine,
+            geminiLoaded: geminiLoaded,
+            aiEngineUseGemini: aiEngine?.useGemini
         });
+
+        // Try AI Engine first (includes Gemini if loaded)
+        if (aiEngine) {
+            try {
+                console.log('🤖 Processing with AI Engine...');
+                aiResponse = await aiEngine.processUserMessage(message);
+                responseText = aiResponse.message;
+                
+                // Log AI details
+                console.log('🤖 AI Response:', {
+                    userMessage: message,
+                    intent: aiResponse.intent,
+                    confidence: aiResponse.confidence,
+                    source: aiResponse.source || 'pattern-matching',
+                    action: aiResponse.action,
+                    data: aiResponse.data
+                });
+                
+                // Handle actions and provide visual feedback
+                if (aiResponse.action) {
+                    switch(aiResponse.action) {
+                        case 'CALCULATE_ROUTE':
+                            responseText += '\n\n🗺️ Displaying route on map...';
+                            if (window.handleAIAction) {
+                                window.handleAIAction(aiResponse);
+                            }
+                            // Scroll to map
+                            setTimeout(() => {
+                                const mapContainer = document.getElementById('myMap') || document.querySelector('.map-container');
+                                if (mapContainer) {
+                                    mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 500);
+                            break;
+                            
+                        case 'SET_ORIGIN':
+                            responseText += '\n\n📍 Origin marked on map!';
+                            if (window.handleAIAction) {
+                                window.handleAIAction(aiResponse);
+                            }
+                            break;
+                            
+                        case 'SET_DESTINATION':
+                            responseText += '\n\n🎯 Destination set! Set origin to calculate route.';
+                            if (window.handleAIAction) {
+                                window.handleAIAction(aiResponse);
+                            }
+                            break;
+                            
+                        case 'START_NAVIGATION':
+                            responseText += '\n\n🚀 Starting turn-by-turn navigation!';
+                            if (window.handleAIAction) {
+                                window.handleAIAction(aiResponse);
+                            }
+                            break;
+                            
+                        default:
+                            if (window.handleAIAction) {
+                                window.handleAIAction(aiResponse);
+                            }
+                    }
+                }
+            } catch (error) {
+                console.error('AI processing error:', error);
+                responseText = harborKnowledge.getResponse(message);
+            }
+        } else {
+            // Fallback to knowledge base
+            responseText = harborKnowledge.getResponse(message);
+        }
+
+        // Remove typing indicator
+        const typing = document.getElementById('typing-indicator');
+        if (typing) typing.remove();
 
         // Add assistant message
         const assistantMsgDiv = document.createElement('div');
@@ -445,8 +624,6 @@
         assistantMsgDiv.innerHTML = `<div class="harbor-bubble">${window.escapeHtml(responseText)}</div>`;
         messagesDiv.appendChild(assistantMsgDiv);
 
-        // Clear input and scroll
-        input.value = '';
         input.focus();
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     };
