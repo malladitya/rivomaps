@@ -7,14 +7,18 @@
             right: 20px;
             width: 380px;
             height: 500px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border-radius: 20px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.2), 
+                        0 0 0 1px rgba(255, 255, 255, 0.2) inset;
             display: none;
             flex-direction: column;
             z-index: 99999;
             font-family: 'Poppins', sans-serif;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         #harbor-chatbot-widget.open {
@@ -87,7 +91,8 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            background: #f8f9fa;
+            background: rgba(248, 249, 250, 0.3);
+            backdrop-filter: blur(10px);
         }
 
         .harbor-message {
@@ -130,33 +135,45 @@
         }
 
         .harbor-message.assistant .harbor-bubble {
-            background: white;
-            color: #333;
-            border: 1px solid #e0e0e0;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            color: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.4);
             border-bottom-left-radius: 3px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .harbor-input-section {
             padding: 12px;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
             display: flex;
             gap: 8px;
         }
 
         .harbor-input-section input {
             flex: 1;
-            border: 1px solid #e0e0e0;
+            border: 2px solid rgba(255, 255, 255, 0.4);
             border-radius: 20px;
             padding: 10px 14px;
             font-family: 'Poppins', sans-serif;
             font-size: 13px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            color: #1e293b;
+        }
+
+        .harbor-input-section input::placeholder {
+            color: rgba(30, 41, 59, 0.6);
         }
 
         .harbor-input-section input:focus {
             border-color: #0EA5A2;
+            background: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 4px 16px rgba(14, 165, 162, 0.2);
         }
 
         .harbor-send-btn {
