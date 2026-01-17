@@ -20,6 +20,16 @@
       emailjs.init("your public id");
     })();
   </script>
+  
+  <!-- Google Gemini AI SDK -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@google/generative-ai": "https://esm.run/@google/generative-ai"
+      }
+    }
+  </script>
+  
   <!-- Azure Maps Web SDK -->
   <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" />
   <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
@@ -1073,6 +1083,8 @@
 
       <!-- AI & Navigation Scripts -->
       <script src="ai-nlp-engine.js"></script>
+      <script src="gemini-route-analyzer.js"></script>
+      <script src="gemini-setup-info.js"></script>
       <script src="ai-action-handler.js"></script>
       <script src="chatbot-widget.js"></script>
 

@@ -1,11 +1,14 @@
 /**
  * AI-Powered Natural Language Processing Engine
- * Intelligent understanding of user commands and queries
- * @version 2.0
+ * Intelligent understanding of user commands and queries with Google Gemini
+ * @version 3.0 - Gemini Enhanced
  */
 
+console.log('📦 Loading AI NLP Engine...');
+
 class AIUnderstandingEngine {
-  constructor() {
+  constructor(geminiApiKey = null) {
+    console.log('🔧 Initializing AIUnderstandingEngine with API key:', geminiApiKey ? 'Provided' : 'None');
     this.conversationHistory = [];
     this.userPreferences = {
       origin: null,
@@ -14,6 +17,25 @@ class AIUnderstandingEngine {
       selectedModes: ['WALKING'],
       avoidAreas: []
     };
+    
+    // Gemini integration
+    this.geminiApiKey = geminiApiKey;
+    this.geminiModel = null;
+    this.useGemini = !!this.geminiApiKey;
+    this.geminiEndpointBase = 'https://generativelanguage.googleapis.com/v1/models';
+    this.geminiModelCandidates = [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-001',
+      'gemini-2.0-flash-lite',
+      'gemini-2.0-flash-lite-001',
+      'gemini-2.5-pro'
+    ];
+    
+    if (this.useGemini) {
+      console.log('✅ Gemini AI activated - Enhanced intelligence enabled (v1 REST)');
+    }
     
     // Confidence thresholds
     this.confidenceThreshold = 0.6;
@@ -26,6 +48,7 @@ class AIUnderstandingEngine {
       GET_COMFORT: { patterns: ['comfort level', 'sensory', 'how comfortable', 'stress level', 'noise', 'crowd'], priority: 7 },
       CHECK_TIME: { patterns: ['how long', 'time', 'duration', 'arrive', 'eta'], priority: 6 },
       REPORT_NOISE: { patterns: ['report noise', 'report a noise', 'how to report', 'report a zone', 'report zone', 'noise report', 'how do i report'], priority: 8 },
+      VISION_BENEFITS: { patterns: ['vision', 'benefits', 'why rivo', 'why use rivo', 'what are benefits', 'mission', 'purpose', 'advantage'], priority: 7 },
       HELP: { patterns: ['help', 'what can you do', 'commands', 'guide', 'how to'], priority: 5 },
       START_NAV: { patterns: ['start', 'begin', 'navigate', 'let\'s go', 'start navigation'], priority: 8 },
       AVOID_AREA: { patterns: ['avoid', 'skip', 'don\'t go', 'no', 'stay away'], priority: 7 },
@@ -42,14 +65,17 @@ class AIUnderstandingEngine {
       'panipat': { lat: 29.3910, lng: 79.1580, aliases: ['panipat'] },
       'airport': { lat: 28.5562, lng: 77.1000, aliases: ['airport', 'indira gandhi', 'igia'] },
       'sector 7': { lat: 30.7389, lng: 76.7641, aliases: ['sector 7', 's7', 'sector7'] },
-      'sector 17': { lat: 30.7428, lng: 76.7589, aliases: ['sector 17', 's17', 'sector17'] }
+      'sector 17': { lat: 30.7428, lng: 76.7589, aliases: ['sector 17', 's17', 'sector17'] },
+      'mall': { lat: 30.7000, lng: 76.8000, aliases: ['mall', 'shopping mall', 'elante', 'shopping center'] },
+      'market': { lat: 30.7200, lng: 76.7700, aliases: ['market', 'bazaar', 'sector 22'] }
     };
   }
 
   /**
    * Main entry point: Process user message and return AI response
+   * Enhanced with Gemini intelligence
    */
-  processUserMessage(userMessage) {
+  async processUserMessage(userMessage) {
     // Store in history
     this.conversationHistory.push({
       role: 'user',
@@ -57,6 +83,280 @@ class AIUnderstandingEngine {
       timestamp: Date.now()
     });
 
+    // Try Gemini first if available
+    if (this.useGemini) {
+      try {
+        const geminiResponse = await this.processWithGemini(userMessage);
+        if (geminiResponse) {
+          this.conversationHistory.push({
+            role: 'assistant',
+            content: geminiResponse.message,
+            timestamp: Date.now(),
+            intent: geminiResponse.intent,
+            confidence: geminiResponse.confidence,
+            source: 'gemini'
+          });
+          return geminiResponse;
+        }
+      } catch (error) {
+        console.warn('Gemini processing failed, using fallback:', error);
+      }
+    }
+
+    // Fallback to pattern matching
+    return this.processWithPatternMatching(userMessage);
+  }
+
+  /**
+   * Process message using Google Gemini AI
+   */
+  async processWithGemini(userMessage) {
+    const context = `You are Harbor, an AI assistant for Rivo Navigation, a sensory-friendly navigation app.
+Users have autism or sensory sensitivities and need quiet, comfortable routes.
+
+Current user context:
+- Origin: ${this.userPreferences.origin ? JSON.stringify(this.userPreferences.origin) : 'Not set'}
+- Destination: ${this.userPreferences.destination ? JSON.stringify(this.userPreferences.destination) : 'Not set'}
+- Preference: ${this.userPreferences.preferenceType}
+- Avoid areas: ${this.userPreferences.avoidAreas.map(a => a.name).join(', ') || 'None'}
+
+Available locations database:
+- Delhi (28.6139, 77.2090)
+- Chandigarh (30.7333, 76.7794)
+- Sector 17 (30.7428, 76.7589)
+- Ghaziabad (28.6692, 77.4538)
+- Noida (28.5355, 77.3910)
+- Airport (28.5562, 77.1000)
+
+User message: "${userMessage}"
+
+IMPORTANT: 
+- If user mentions origin AND destination in ONE message, set action to "CALCULATE_ROUTE"
+- Extract actual location names from the message
+- If user wants to avoid crowds/noise, add to avoidAreas
+
+Analyze and respond with JSON:
+{
+  "intent": "SET_LOCATION|SET_DESTINATION|GET_ROUTE|START_NAV|REPORT_NOISE|HELP|AVOID_AREA|GET_COMFORT|GREET|GENERAL",
+  "origin": "exact location name or null",
+  "destination": "exact location name or null",
+  "preferences": ["comfort", "speed", "quiet"],
+  "avoidAreas": ["crowds", "noise", "construction"],
+  "confidence": 0.0-1.0,
+  "action": "CALCULATE_ROUTE|SET_ORIGIN|SET_DESTINATION|START_NAVIGATION|SHOW_HELP|ADD_AVOID_AREA|null",
+  "message": "Brief confirmation that you're setting up the route (1 sentence, use emoji)"
+}`;
+
+    try {
+      const text = await this.callGeminiV1(context);
+      
+      // Extract JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Build response data
+        let responseData = {};
+        
+        // Handle origin
+        if (parsed.origin) {
+          const originLocation = this.findLocationInDatabase(parsed.origin);
+          if (originLocation) {
+            this.userPreferences.origin = originLocation;
+            responseData.origin = originLocation;
+          }
+        }
+        
+        // Handle destination
+        if (parsed.destination) {
+          const destLocation = this.findLocationInDatabase(parsed.destination);
+          if (destLocation) {
+            this.userPreferences.destination = destLocation;
+            responseData.destination = destLocation;
+          }
+        }
+        
+        // Handle avoid areas
+        if (parsed.avoidAreas && parsed.avoidAreas.length > 0) {
+          parsed.avoidAreas.forEach(area => {
+            if (!this.userPreferences.avoidAreas.some(a => a.name === area)) {
+              this.userPreferences.avoidAreas.push({ name: area, type: 'general' });
+            }
+          });
+        }
+        
+        // Handle preferences
+        if (parsed.preferences && parsed.preferences.length > 0) {
+          if (parsed.preferences.includes('comfort') || parsed.preferences.includes('quiet')) {
+            this.userPreferences.preferenceType = 'comfort';
+          } else if (parsed.preferences.includes('speed')) {
+            this.userPreferences.preferenceType = 'speed';
+          }
+          responseData.preference = this.userPreferences.preferenceType;
+        }
+        
+        // Determine final action - if both origin and destination are set, calculate route
+        let finalAction = parsed.action;
+        if (this.userPreferences.origin && this.userPreferences.destination && 
+            (parsed.action === 'SET_DESTINATION' || parsed.action === 'CALCULATE_ROUTE')) {
+          finalAction = 'CALCULATE_ROUTE';
+          responseData = {
+            origin: this.userPreferences.origin,
+            destination: this.userPreferences.destination,
+            preference: this.userPreferences.preferenceType,
+            modes: this.userPreferences.selectedModes,
+            avoidAreas: this.userPreferences.avoidAreas
+          };
+        } else if (parsed.origin && !parsed.destination) {
+          finalAction = 'SET_ORIGIN';
+          responseData = { location: this.userPreferences.origin };
+        } else if (parsed.destination && !this.userPreferences.origin) {
+          finalAction = 'SET_DESTINATION';
+          responseData = { location: this.userPreferences.destination };
+        }
+        
+        return {
+          message: parsed.message || text,
+          action: finalAction,
+          data: responseData,
+          intent: parsed.intent,
+          confidence: parsed.confidence || 0.9,
+          preferences: this.userPreferences,
+          conversationContext: this.getConversationContext(),
+          source: 'gemini'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Gemini processing error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Call Gemini v1 REST API directly to avoid v1beta SDK routing.
+   */
+  async callGeminiV1(prompt) {
+    if (!this.geminiApiKey) {
+      throw new Error('Gemini API key not provided');
+    }
+
+    let lastError = null;
+
+    // First try known candidates
+    for (const modelName of this.geminiModelCandidates) {
+      const endpoint = `${this.geminiEndpointBase}/${modelName}:generateContent?key=${encodeURIComponent(this.geminiApiKey)}`;
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }]
+              }
+            ]
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          lastError = new Error(`Gemini v1 error ${response.status}: ${errorText}`);
+          continue;
+        }
+
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+          lastError = new Error('Gemini v1 returned empty response');
+          continue;
+        }
+
+        return text;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    // If all candidates fail, discover available models and retry
+    const discovered = await this.listGeminiModels();
+    const firstUsable = discovered.find(model => model.supportedGenerationMethods?.includes('generateContent'));
+    if (firstUsable?.name) {
+      const modelName = firstUsable.name.replace('models/', '');
+      const endpoint = `${this.geminiEndpointBase}/${modelName}:generateContent?key=${encodeURIComponent(this.geminiApiKey)}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          console.log(`✅ Using discovered Gemini model: ${modelName}`);
+          return text;
+        }
+      }
+    }
+
+    throw lastError || new Error('Gemini v1 request failed');
+  }
+
+  /**
+   * List available Gemini models for this API key.
+   */
+  async listGeminiModels() {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(this.geminiApiKey)}`);
+      if (!response.ok) {
+        return [];
+      }
+      const data = await response.json();
+      const models = data?.models || [];
+      console.log('🔍 Available Gemini models:', models.map(m => m.name));
+      return models;
+    } catch (error) {
+      console.warn('⚠️ Failed to list Gemini models', error);
+      return [];
+    }
+  }
+
+  /**
+   * Find location in database by name
+   */
+  findLocationInDatabase(locationName) {
+    const lowerName = locationName.toLowerCase();
+    for (const [key, data] of Object.entries(this.locationDatabase)) {
+      if (data.aliases.some(alias => lowerName.includes(alias))) {
+        return {
+          name: key,
+          lat: data.lat,
+          lng: data.lng,
+          confidence: 0.9
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Fallback: Process with pattern matching
+   */
+  processWithPatternMatching(userMessage) {
     // Clean input
     const cleanMessage = userMessage.toLowerCase().trim();
 
@@ -313,6 +613,7 @@ class AIUnderstandingEngine {
 • "Comfort level" - Check sensory comfort
 • "Avoid [area]" - Skip certain areas
 • "Report noise" - Learn how to report noisy zones
+• "Vision and benefits" - Learn about Rivo's mission
 • "Start navigation" - Begin guided tour`;
         action = 'SHOW_HELP';
         break;
@@ -331,6 +632,18 @@ class AIUnderstandingEngine {
 • Community reports make Rivo better for everyone
 • You can report multiple zones if needed`;
         action = 'SHOW_REPORT_GUIDE';
+        break;
+
+      case 'VISION_BENEFITS':
+        message = `🧠 AI-Powered Sensory Routing
+
+Our intelligent algorithm analyzes real-time data to avoid:
+• Noisy areas (construction, traffic, crowds)
+• Overwhelming visual stimuli (busy intersections, flashing signs)
+• Crowded spaces (rush-hour zones, events)
+
+Instead, we route through parks, quiet streets, and calming pathways—reducing anxiety and enabling independence.`;
+        action = 'SHOW_VISION';
         break;
 
       case 'GREET':
@@ -397,6 +710,16 @@ class AIUnderstandingEngine {
       }
       if (lowerMsg.includes('sensory') || lowerMsg.includes('autism')) {
         return '🧠 Sensory-friendly routes consider factors like noise levels, crowd density, and visual stress. I help identify the most comfortable paths for your journey.';
+      }
+      if (lowerMsg.includes('benefit') || lowerMsg.includes('vision') || lowerMsg.includes('purpose') || lowerMsg.includes('mission') || lowerMsg.includes('advantage')) {
+        return `🧠 AI-Powered Sensory Routing
+
+Our intelligent algorithm analyzes real-time data to avoid:
+• Noisy areas (construction, traffic, crowds)
+• Overwhelming visual stimuli (busy intersections, flashing signs)
+• Crowded spaces (rush-hour zones, events)
+
+Instead, we route through parks, quiet streets, and calming pathways—reducing anxiety and enabling independence.`;
       }
       if (lowerMsg.includes('route') || lowerMsg.includes('navigation')) {
         return '🗺️ I calculate routes based on your preferences. You can choose between comfort and speed. Set your location and destination to get started!';
@@ -504,7 +827,99 @@ class AIUnderstandingEngine {
       totalInteractions: this.conversationHistory.length
     };
   }
+
+  /**
+   * Analyze route for sensory comfort using Gemini
+   */
+  async analyzeRouteSensoryComfort(route, userPreferences = {}) {
+    if (!this.useGemini) {
+      return this.basicRouteSensoryAnalysis(route);
+    }
+
+    const context = `Analyze this navigation route for sensory comfort:
+
+Route details:
+- Distance: ${route.distance || 'Unknown'}
+- Duration: ${route.duration || 'Unknown'}
+- Steps: ${route.steps?.length || 0}
+
+User preferences:
+- Prefers: ${userPreferences.preferenceType || 'comfort'}
+- Sensitivities: noise, crowds, visual stimuli
+
+Rate this route:
+{
+  "comfortScore": 0-100,
+  "noiseRisk": 0-100,
+  "crowdRisk": 0-100,
+  "triggers": ["list of potential sensory triggers"],
+  "recommendations": ["suggestions for safer navigation"],
+  "summary": "Brief 1-sentence assessment"
+}`;
+
+    try {
+      const result = await this.geminiModel.generateContent(context);
+      const response = await result.response;
+      const text = response.text();
+      
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (error) {
+      console.error('Route analysis error:', error);
+    }
+    
+    return this.basicRouteSensoryAnalysis(route);
+  }
+
+  /**
+   * Basic route sensory analysis (fallback)
+   */
+  basicRouteSensoryAnalysis(route) {
+    const baseComfort = 70;
+    const distance = parseFloat(route.distance) || 0;
+    const comfort = Math.max(40, Math.min(100, baseComfort - (distance * 0.5)));
+    
+    return {
+      comfortScore: Math.round(comfort),
+      noiseRisk: Math.round(100 - comfort),
+      crowdRisk: 50,
+      triggers: ['Traffic noise', 'Potential crowds'],
+      recommendations: ['Use headphones', 'Travel during off-peak hours'],
+      summary: `Comfort level: ${Math.round(comfort)}%`
+    };
+  }
+
+  /**
+   * Chat with Gemini for natural conversation
+   */
+  async chat(userMessage, context = {}) {
+    if (!this.useGemini) {
+      return this.generateContextualResponse(userMessage, {});
+    }
+
+    const systemContext = `You are Harbor, a friendly navigation assistant for Rivo - a sensory-friendly navigation app.
+
+Current context:
+- User location: ${context.location || 'Unknown'}
+- Current route: ${context.route || 'None'}
+
+Be helpful, empathetic, and concise. Respond in 1-2 sentences with an emoji.
+
+User: "${userMessage}"`;
+
+    try {
+      const result = await this.geminiModel.generateContent(systemContext);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Chat error:', error);
+      return this.generateContextualResponse(userMessage, {});
+    }
+  }
 }
 
 // Export for use in browser
 window.AIUnderstandingEngine = AIUnderstandingEngine;
+console.log('✅ AIUnderstandingEngine exported to window');
