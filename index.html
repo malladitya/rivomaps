@@ -87,6 +87,107 @@
     </div>
   </div>
 
+  <!-- Auth Modal -->
+  <div id="authModal" class="auth-modal" style="display: none;">
+    <div class="auth-modal-overlay" onclick="closeAuthModal()"></div>
+    <div class="auth-modal-content">
+      <button class="auth-modal-close" onclick="closeAuthModal()" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      
+      <div class="auth-container-modal">
+        <div class="logo-modal">
+          <img src="logo1.png" alt="Rivo Logo">
+          <h1>Rivo</h1>
+        </div>
+        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 30px;">Your AI-Powered Navigation Assistant</p>
+
+        <div id="alertModal" class="alert-modal"></div>
+
+        <div id="authFormsModal">
+          <div class="tab-buttons-modal">
+            <button class="tab-btn-modal active" onclick="switchTabModal('signin')">Sign In</button>
+            <button class="tab-btn-modal" onclick="switchTabModal('signup')">Sign Up</button>
+          </div>
+
+          <div id="signin-form-modal" class="form-container-modal active">
+            <form onsubmit="handleSignInModal(event)">
+              <div class="form-group-modal">
+                <label for="signin-email-modal">Email</label>
+                <input type="email" id="signin-email-modal" required placeholder="you@example.com">
+              </div>
+              <div class="form-group-modal">
+                <label for="signin-password-modal">Password</label>
+                <input type="password" id="signin-password-modal" required placeholder="Enter your password">
+              </div>
+              <div class="forgot-password-modal">
+                <a href="#" onclick="showForgotPasswordModal(event)">Forgot Password?</a>
+              </div>
+              <button type="submit" class="submit-btn-modal" id="signin-btn-modal">Sign In</button>
+            </form>
+
+            <div class="divider-modal"><span>OR</span></div>
+
+            <button class="google-btn-modal" onclick="handleGoogleSignInModal()">
+              <svg class="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
+          </div>
+
+          <div id="signup-form-modal" class="form-container-modal">
+            <form onsubmit="handleSignUpModal(event)">
+              <div class="form-group-modal">
+                <label for="signup-name-modal">Full Name</label>
+                <input type="text" id="signup-name-modal" required placeholder="John Doe">
+              </div>
+              <div class="form-group-modal">
+                <label for="signup-email-modal">Email</label>
+                <input type="email" id="signup-email-modal" required placeholder="you@example.com">
+              </div>
+              <div class="form-group-modal">
+                <label for="signup-password-modal">Password</label>
+                <input type="password" id="signup-password-modal" required placeholder="At least 6 characters" minlength="6">
+              </div>
+              <div class="form-group-modal">
+                <label for="signup-confirm-modal">Confirm Password</label>
+                <input type="password" id="signup-confirm-modal" required placeholder="Re-enter password">
+              </div>
+              <button type="submit" class="submit-btn-modal" id="signup-btn-modal">Create Account</button>
+            </form>
+
+            <div class="divider-modal"><span>OR</span></div>
+
+            <button class="google-btn-modal" onclick="handleGoogleSignInModal()">
+              <svg class="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
+          </div>
+        </div>
+
+        <div id="userInfoModal" class="user-info-modal" style="display: none;">
+          <div class="user-avatar-modal" id="userAvatarModal">U</div>
+          <div class="user-name-modal" id="userNameModal">User Name</div>
+          <div class="user-email-modal" id="userEmailModal">user@example.com</div>
+          <button class="action-btn-modal" onclick="goToAppModal()">Go to Rivo Maps</button>
+          <button class="action-btn-modal signout-btn-modal" onclick="handleSignOutModal()">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Theme Toggle -->
   <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
     <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1397,6 +1498,533 @@
         window.liveTracking = liveTracking;
 
         console.log('✅ Dynamic route recalculation module loaded');
+      </script>
+
+      <!-- Auth Modal Styles & Scripts -->
+      <style>
+        .auth-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 10000;
+        }
+
+        .auth-modal-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(4px);
+        }
+
+        .auth-modal-content {
+          position: relative;
+          max-width: 450px;
+          max-height: 90vh;
+          overflow-y: auto;
+          margin: 5vh auto;
+          background: white;
+          border-radius: 20px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .auth-modal-close {
+          position: absolute;
+          top: 15px;
+          right: 15px;
+          background: #f5f5f5;
+          border: none;
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          z-index: 1;
+        }
+
+        .auth-modal-close:hover {
+          background: #e0e0e0;
+          transform: rotate(90deg);
+        }
+
+        .auth-container-modal {
+          padding: 40px;
+        }
+
+        .logo-modal {
+          text-align: center;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        .logo-modal img {
+          width: 50px;
+          height: 50px;
+          filter: drop-shadow(0 4px 8px rgba(14, 165, 162, 0.3));
+        }
+
+        .logo-modal h1 {
+          color: #0EA5A2;
+          font-size: 36px;
+          font-weight: 700;
+          margin-bottom: 0;
+        }
+
+        .tab-buttons-modal {
+          display: flex;
+          margin-bottom: 30px;
+          background: #f5f5f5;
+          border-radius: 10px;
+          padding: 5px;
+        }
+
+        .tab-btn-modal {
+          flex: 1;
+          padding: 12px;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 16px;
+          font-weight: 500;
+          color: #666;
+          border-radius: 8px;
+          transition: all 0.3s ease;
+        }
+
+        .tab-btn-modal.active {
+          background: white;
+          color: #0EA5A2;
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(14, 165, 162, 0.1), inset 0 -2px 0 rgba(14, 165, 162, 0.1);
+          transform: translateY(-1px);
+        }
+
+        .form-container-modal {
+          display: none;
+        }
+
+        .form-container-modal.active {
+          display: block;
+        }
+
+        .form-group-modal {
+          margin-bottom: 20px;
+        }
+
+        .form-group-modal label {
+          display: block;
+          margin-bottom: 8px;
+          color: #333;
+          font-weight: 500;
+          font-size: 14px;
+        }
+
+        .form-group-modal input {
+          width: 100%;
+          padding: 14px;
+          border: 2px solid #e0e0e0;
+          border-radius: 10px;
+          font-size: 15px;
+          transition: all 0.3s;
+        }
+
+        .form-group-modal input:focus {
+          outline: none;
+          border-color: #0EA5A2;
+        }
+
+        .submit-btn-modal {
+          width: 100%;
+          padding: 14px;
+          background: linear-gradient(135deg, #0EA5A2 0%, #0EA5A2 100%);
+          color: white;
+          border: none;
+          border-radius: 10px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-top: 10px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(14, 165, 162, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .submit-btn-modal:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), 0 12px 24px rgba(14, 165, 162, 0.3), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .submit-btn-modal:active {
+          transform: translateY(1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(14, 165, 162, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .submit-btn-modal:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .divider-modal {
+          text-align: center;
+          margin: 25px 0;
+          position: relative;
+        }
+
+        .divider-modal::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          width: 100%;
+          height: 1px;
+          background: #e0e0e0;
+        }
+
+        .divider-modal span {
+          background: white;
+          padding: 0 15px;
+          position: relative;
+          color: #999;
+          font-size: 14px;
+        }
+
+        .google-btn-modal {
+          width: 100%;
+          padding: 14px;
+          background: white;
+          color: #333;
+          border: 2px solid #e0e0e0;
+          border-radius: 10px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          transition: all 0.3s ease;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.05), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .google-btn-modal:hover {
+          border-color: #0EA5A2;
+          background: #f8f9ff;
+          transform: translateY(-2px);
+          box-shadow: 0 5px 10px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(14, 165, 162, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .google-btn-modal:active {
+          transform: translateY(1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .google-icon {
+          width: 20px;
+          height: 20px;
+        }
+
+        .forgot-password-modal {
+          text-align: right;
+          margin-top: 10px;
+        }
+
+        .forgot-password-modal a {
+          color: #0EA5A2;
+          text-decoration: none;
+          font-size: 14px;
+        }
+
+        .forgot-password-modal a:hover {
+          text-decoration: underline;
+        }
+
+        .alert-modal {
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 14px;
+          display: none;
+        }
+
+        .alert-modal.show {
+          display: block;
+        }
+
+        .alert-modal.success {
+          background: #d4edda;
+          color: #155724;
+          border: 1px solid #c3e6cb;
+        }
+
+        .alert-modal.error {
+          background: #f8d7da;
+          color: #721c24;
+          border: 1px solid #f5c6cb;
+        }
+
+        .user-info-modal {
+          text-align: center;
+        }
+
+        .user-avatar-modal {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          margin: 0 auto 20px;
+          background: linear-gradient(135deg, #0EA5A2 0%, #0EA5A2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 32px;
+          font-weight: 600;
+        }
+
+        .user-name-modal {
+          font-size: 24px;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 5px;
+        }
+
+        .user-email-modal {
+          color: #666;
+          margin-bottom: 20px;
+        }
+
+        .action-btn-modal {
+          width: 100%;
+          padding: 12px;
+          border: 2px solid #0EA5A2;
+          background: white;
+          color: #0EA5A2;
+          border-radius: 10px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          margin-bottom: 10px;
+          transition: all 0.3s ease;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(14, 165, 162, 0.1), inset 0 -2px 0 rgba(14, 165, 162, 0.1);
+        }
+
+        .action-btn-modal:hover {
+          background: #0EA5A2;
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 5px 10px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(14, 165, 162, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn-modal:active {
+          transform: translateY(1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .signout-btn-modal {
+          background: #f44336;
+          border-color: #f44336;
+          color: white;
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(244, 67, 54, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .signout-btn-modal:hover {
+          background: #d32f2f;
+          border-color: #d32f2f;
+        }
+      </style>
+
+      <script type="module">
+        // Import Firebase SDK
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+          getAuth, 
+          createUserWithEmailAndPassword,
+          signInWithEmailAndPassword,
+          GoogleAuthProvider,
+          signInWithPopup,
+          signOut,
+          onAuthStateChanged,
+          sendPasswordResetEmail,
+          updateProfile
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyCpRStd3cJuavDoB87i_6OLS7krIl8Kkvc",
+          authDomain: "rivo-maps-82621.firebaseapp.com",
+          projectId: "rivo-maps-82621",
+          storageBucket: "rivo-maps-82621.firebasestorage.app",
+          messagingSenderId: "679917061688",
+          appId: "1:679917061688:web:3adc8be2b3cfadea3f93f7",
+          measurementId: "G-SYY6Y70MEL"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Check auth state
+        onAuthStateChanged(auth, (user) => {
+          if (user && document.getElementById('authModal').style.display !== 'none') {
+            showUserInfoModal(user);
+          }
+        });
+
+        // Global modal functions
+        window.openAuthModal = function() {
+          document.getElementById('authModal').style.display = 'block';
+          document.body.style.overflow = 'hidden';
+        };
+
+        window.closeAuthModal = function() {
+          document.getElementById('authModal').style.display = 'none';
+          document.body.style.overflow = 'auto';
+        };
+
+        window.switchTabModal = function(tab) {
+          document.querySelectorAll('.tab-btn-modal').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.form-container-modal').forEach(form => form.classList.remove('active'));
+          
+          if (tab === 'signin') {
+            document.querySelector('.tab-btn-modal:first-child').classList.add('active');
+            document.getElementById('signin-form-modal').classList.add('active');
+          } else {
+            document.querySelector('.tab-btn-modal:last-child').classList.add('active');
+            document.getElementById('signup-form-modal').classList.add('active');
+          }
+          hideAlertModal();
+        };
+
+        window.handleSignInModal = async function(event) {
+          event.preventDefault();
+          const email = document.getElementById('signin-email-modal').value;
+          const password = document.getElementById('signin-password-modal').value;
+          
+          setLoadingModal('signin-btn-modal', true);
+          try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showAlertModal('Successfully signed in!', 'success');
+            setTimeout(() => window.location.href = 'rivo.html', 1500);
+          } catch (error) {
+            showAlertModal(error.message, 'error');
+          }
+          setLoadingModal('signin-btn-modal', false);
+        };
+
+        window.handleSignUpModal = async function(event) {
+          event.preventDefault();
+          const name = document.getElementById('signup-name-modal').value;
+          const email = document.getElementById('signup-email-modal').value;
+          const password = document.getElementById('signup-password-modal').value;
+          const confirm = document.getElementById('signup-confirm-modal').value;
+          
+          if (password !== confirm) {
+            showAlertModal('Passwords do not match', 'error');
+            return;
+          }
+          
+          setLoadingModal('signup-btn-modal', true);
+          try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, { displayName: name });
+            showAlertModal('Account created successfully!', 'success');
+            setTimeout(() => window.location.href = 'rivo.html', 1500);
+          } catch (error) {
+            showAlertModal(error.message, 'error');
+          }
+          setLoadingModal('signup-btn-modal', false);
+        };
+
+        window.handleGoogleSignInModal = async function() {
+          try {
+            await signInWithPopup(auth, googleProvider);
+            showAlertModal('Successfully signed in with Google!', 'success');
+            setTimeout(() => window.location.href = 'rivo.html', 1500);
+          } catch (error) {
+            showAlertModal(error.message, 'error');
+          }
+        };
+
+        window.handleSignOutModal = async function() {
+          try {
+            await signOut(auth);
+            showAlertModal('Successfully signed out!', 'success');
+            setTimeout(() => {
+              document.getElementById('authFormsModal').style.display = 'block';
+              document.getElementById('userInfoModal').style.display = 'none';
+            }, 1000);
+          } catch (error) {
+            showAlertModal(error.message, 'error');
+          }
+        };
+
+        window.showForgotPasswordModal = async function(event) {
+          event.preventDefault();
+          const email = prompt('Enter your email address:');
+          if (email) {
+            try {
+              await sendPasswordResetEmail(auth, email);
+              showAlertModal('Password reset email sent!', 'success');
+            } catch (error) {
+              showAlertModal(error.message, 'error');
+            }
+          }
+        };
+
+        window.goToAppModal = function() {
+          window.location.href = 'rivo.html';
+        };
+
+        function showUserInfoModal(user) {
+          document.getElementById('authFormsModal').style.display = 'none';
+          document.getElementById('userInfoModal').style.display = 'block';
+          
+          const initial = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+          document.getElementById('userAvatarModal').textContent = initial;
+          document.getElementById('userNameModal').textContent = user.displayName || 'User';
+          document.getElementById('userEmailModal').textContent = user.email;
+        }
+
+        function showAlertModal(message, type) {
+          const alert = document.getElementById('alertModal');
+          alert.textContent = message;
+          alert.className = `alert-modal ${type} show`;
+          
+          setTimeout(() => {
+            alert.classList.remove('show');
+          }, 5000);
+        }
+
+        function hideAlertModal() {
+          document.getElementById('alertModal').classList.remove('show');
+        }
+
+        function setLoadingModal(btnId, loading) {
+          const btn = document.getElementById(btnId);
+          btn.disabled = loading;
+          btn.textContent = loading ? 'Please wait...' : (btnId === 'signin-btn-modal' ? 'Sign In' : 'Create Account');
+        }
       </script>
 </body>
 
