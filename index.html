@@ -14,10 +14,10 @@
 
   <!-- EmailJS SDK -->
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="config.js"></script>
   <script type="text/javascript">
     (function () {
-      // Initialize EmailJS with placeholder key - User to replace 'YOUR_PUBLIC_KEY'
-      emailjs.init("your public id");
+      emailjs.init(window.CONFIG?.emailjsPublicKey || "your_public_id");
     })();
   </script>
   
@@ -29,10 +29,6 @@
       }
     }
   </script>
-  
-  <!-- Azure Maps Web SDK -->
-  <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" />
-  <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -124,7 +120,7 @@
                 <input type="password" id="signin-password-modal" required placeholder="Enter your password">
               </div>
               <div class="forgot-password-modal">
-                <a href="#" onclick="showForgotPasswordModal(event)">Forgot Password?</a>
+                <a href="#" onclick="showForgotPasswordForm(event)">Forgot Password?</a>
               </div>
               <button type="submit" class="submit-btn-modal" id="signin-btn-modal">Sign In</button>
             </form>
@@ -175,6 +171,24 @@
               Continue with Google
             </button>
           </div>
+
+          <!-- Forgot Password Form -->
+          <div id="forgot-password-form-modal" class="form-container-modal">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h3 style="margin: 0 0 10px 0; color: #333;">Reset Password</h3>
+              <p style="margin: 0; color: #666; font-size: 14px;">Enter your email to receive a password reset link</p>
+            </div>
+            <form onsubmit="handleForgotPasswordModal(event)">
+              <div class="form-group-modal">
+                <label for="forgot-email-modal">Email</label>
+                <input type="email" id="forgot-email-modal" required placeholder="you@example.com">
+              </div>
+              <button type="submit" class="submit-btn-modal" id="forgot-btn-modal">Send Reset Link</button>
+            </form>
+            <div style="text-align: center; margin-top: 15px;">
+              <a href="#" onclick="showSignInForm(event)" style="color: #0EA5A2; text-decoration: none; font-size: 14px;">← Back to Sign In</a>
+            </div>
+          </div>
         </div>
 
         <div id="userInfoModal" class="user-info-modal" style="display: none;">
@@ -182,7 +196,35 @@
           <div class="user-name-modal" id="userNameModal">User Name</div>
           <div class="user-email-modal" id="userEmailModal">user@example.com</div>
           <button class="action-btn-modal" onclick="goToAppModal()">Go to Rivo Maps</button>
+          <button class="action-btn-modal" onclick="showChangePasswordForm()">Change Password</button>
           <button class="action-btn-modal signout-btn-modal" onclick="handleSignOutModal()">Sign Out</button>
+          <button class="action-btn-modal delete-btn-modal" style="background:#e53935;color:white;border-color:#e53935;margin-top:8px;" onclick="handleDeleteAccountModal()">Delete Account</button>
+        </div>
+
+        <!-- Change Password Form -->
+        <div id="change-password-form-modal" class="form-container-modal" style="display: none;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 10px 0; color: #333;">Change Password</h3>
+            <p style="margin: 0; color: #666; font-size: 14px;">Enter your current and new password</p>
+          </div>
+          <form onsubmit="handleChangePasswordModal(event)">
+            <div class="form-group-modal">
+              <label for="current-password-modal">Current Password</label>
+              <input type="password" id="current-password-modal" required placeholder="Enter current password">
+            </div>
+            <div class="form-group-modal">
+              <label for="new-password-modal">New Password</label>
+              <input type="password" id="new-password-modal" required placeholder="At least 6 characters" minlength="6">
+            </div>
+            <div class="form-group-modal">
+              <label for="confirm-new-password-modal">Confirm New Password</label>
+              <input type="password" id="confirm-new-password-modal" required placeholder="Re-enter new password">
+            </div>
+            <button type="submit" class="submit-btn-modal" id="change-password-btn-modal">Change Password</button>
+          </form>
+          <div style="text-align: center; margin-top: 15px;">
+            <a href="#" onclick="showUserInfoModal()" style="color: #0EA5A2; text-decoration: none; font-size: 14px;">← Back to Profile</a>
+          </div>
         </div>
       </div>
     </div>
@@ -722,6 +764,7 @@
       <div id="site-footer-placeholder"></div>
 
       <script src="layout.js"></script>
+      <script src="global-auth.js"></script>
       <script src="script.js"></script>
       <script src="helpers.js"></script>
       
@@ -1854,7 +1897,7 @@
       </style>
 
       <script type="module">
-        // Import Firebase SDK
+        // Import Firebase SDK v10
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { 
           getAuth, 
@@ -1865,7 +1908,10 @@
           signOut,
           onAuthStateChanged,
           sendPasswordResetEmail,
-          updateProfile
+          updateProfile,
+          updatePassword,
+          EmailAuthProvider,
+          reauthenticateWithCredential
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
         // Firebase configuration
@@ -1884,10 +1930,24 @@
         const auth = getAuth(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // Check auth state
+        // Make auth available globally
+        window.firebaseAuth = auth;
+        window.firebaseApp = app;
+
+        // Check auth state and update UI
         onAuthStateChanged(auth, (user) => {
-          if (user && document.getElementById('authModal').style.display !== 'none') {
-            showUserInfoModal(user);
+          if (user) {
+            updateHeaderAvatar(user);
+            localStorage.setItem('rivoUser', JSON.stringify({
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName
+            }));
+            if (document.getElementById('authModal').style.display !== 'none') {
+              showUserInfoModal(user);
+            }
+          } else {
+            resetHeaderToLogin();
           }
         });
 
@@ -1925,9 +1985,11 @@
           try {
             await signInWithEmailAndPassword(auth, email, password);
             showAlertModal('Successfully signed in!', 'success');
-            setTimeout(() => window.location.href = 'rivo.html', 1500);
+            setTimeout(() => {
+              window.location.href = 'index.html#home';
+            }, 1500);
           } catch (error) {
-            showAlertModal(error.message, 'error');
+            showAlertModal(getErrorMessage(error), 'error');
           }
           setLoadingModal('signin-btn-modal', false);
         };
@@ -1949,9 +2011,11 @@
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await updateProfile(userCredential.user, { displayName: name });
             showAlertModal('Account created successfully!', 'success');
-            setTimeout(() => window.location.href = 'rivo.html', 1500);
+            setTimeout(() => {
+              window.location.href = 'index.html#home';
+            }, 1500);
           } catch (error) {
-            showAlertModal(error.message, 'error');
+            showAlertModal(getErrorMessage(error), 'error');
           }
           setLoadingModal('signup-btn-modal', false);
         };
@@ -1960,9 +2024,11 @@
           try {
             await signInWithPopup(auth, googleProvider);
             showAlertModal('Successfully signed in with Google!', 'success');
-            setTimeout(() => window.location.href = 'rivo.html', 1500);
+            setTimeout(() => {
+              window.location.href = 'index.html#home';
+            }, 1500);
           } catch (error) {
-            showAlertModal(error.message, 'error');
+            showAlertModal(getErrorMessage(error), 'error');
           }
         };
 
@@ -1973,9 +2039,10 @@
             setTimeout(() => {
               document.getElementById('authFormsModal').style.display = 'block';
               document.getElementById('userInfoModal').style.display = 'none';
+              resetHeaderToLogin();
             }, 1000);
           } catch (error) {
-            showAlertModal(error.message, 'error');
+            showAlertModal(getErrorMessage(error), 'error');
           }
         };
 
@@ -1987,13 +2054,119 @@
               await sendPasswordResetEmail(auth, email);
               showAlertModal('Password reset email sent!', 'success');
             } catch (error) {
-              showAlertModal(error.message, 'error');
+              showAlertModal(getErrorMessage(error), 'error');
+            }
+          }
+        };
+
+        window.showForgotPasswordForm = function(event) {
+          event.preventDefault();
+          document.querySelectorAll('.form-container-modal').forEach(form => form.classList.remove('active'));
+          document.querySelector('.tab-buttons-modal').style.display = 'none';
+          document.getElementById('forgot-password-form-modal').classList.add('active');
+          hideAlertModal();
+        };
+
+        window.showSignInForm = function(event) {
+          event.preventDefault();
+          document.querySelectorAll('.form-container-modal').forEach(form => form.classList.remove('active'));
+          document.querySelector('.tab-buttons-modal').style.display = 'flex';
+          document.getElementById('signin-form-modal').classList.add('active');
+          document.querySelectorAll('.tab-btn-modal').forEach(btn => btn.classList.remove('active'));
+          document.querySelector('.tab-btn-modal:first-child').classList.add('active');
+          hideAlertModal();
+        };
+
+        window.handleForgotPasswordModal = async function(event) {
+          event.preventDefault();
+          const email = document.getElementById('forgot-email-modal').value;
+          
+          setLoadingModal('forgot-btn-modal', true);
+          try {
+            await sendPasswordResetEmail(auth, email);
+            showAlertModal('Password reset email sent! Check your inbox.', 'success');
+            setTimeout(() => showSignInForm(event), 2000);
+          } catch (error) {
+            showAlertModal(getErrorMessage(error), 'error');
+          }
+          setLoadingModal('forgot-btn-modal', false);
+        };
+
+        window.showChangePasswordForm = function() {
+          document.getElementById('userInfoModal').style.display = 'none';
+          document.getElementById('authFormsModal').style.display = 'none';
+          document.getElementById('change-password-form-modal').style.display = 'block';
+          hideAlertModal();
+        };
+
+        window.showUserInfoModal = function() {
+          document.getElementById('change-password-form-modal').style.display = 'none';
+          document.getElementById('userInfoModal').style.display = 'block';
+          hideAlertModal();
+        };
+
+        window.handleChangePasswordModal = async function(event) {
+          event.preventDefault();
+          const currentPassword = document.getElementById('current-password-modal').value;
+          const newPassword = document.getElementById('new-password-modal').value;
+          const confirmPassword = document.getElementById('confirm-new-password-modal').value;
+          
+          if (newPassword !== confirmPassword) {
+            showAlertModal('New passwords do not match', 'error');
+            return;
+          }
+          
+          setLoadingModal('change-password-btn-modal', true);
+          try {
+            const user = auth.currentUser;
+            if (!user) {
+              showAlertModal('No user is currently signed in.', 'error');
+              return;
+            }
+            
+            // Re-authenticate user with current password
+            const credential = EmailAuthProvider.credential(user.email, currentPassword);
+            await reauthenticateWithCredential(user, credential);
+            
+            // Update password
+            await updatePassword(user, newPassword);
+            
+            showAlertModal('Password changed successfully!', 'success');
+            setTimeout(() => {
+              document.getElementById('change-password-form-modal').querySelector('form').reset();
+              showUserInfoModal();
+            }, 2000);
+          } catch (error) {
+            showAlertModal(getErrorMessage(error), 'error');
+          }
+          setLoadingModal('change-password-btn-modal', false);
+        };
+
+        window.handleDeleteAccountModal = async function() {
+          if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) return;
+          try {
+            const user = auth.currentUser;
+            if (user) {
+              await user.delete();
+              showAlertModal('Account deleted successfully!', 'success');
+              setTimeout(() => {
+                resetHeaderToLogin();
+                closeAuthModal();
+              }, 1500);
+            } else {
+              showAlertModal('No user is currently signed in.', 'error');
+            }
+          } catch (error) {
+            if (error.code === 'auth/requires-recent-login') {
+              showAlertModal('Please sign in again to delete your account.', 'error');
+            } else {
+              showAlertModal(getErrorMessage(error), 'error');
             }
           }
         };
 
         window.goToAppModal = function() {
-          window.location.href = 'rivo.html';
+          closeAuthModal();
         };
 
         function showUserInfoModal(user) {
@@ -2004,6 +2177,29 @@
           document.getElementById('userAvatarModal').textContent = initial;
           document.getElementById('userNameModal').textContent = user.displayName || 'User';
           document.getElementById('userEmailModal').textContent = user.email;
+        }
+
+        function updateHeaderAvatar(user) {
+          const headerLoginBtn = document.getElementById('header-login-btn');
+          const headerAvatar = document.getElementById('header-avatar');
+          
+          if (headerLoginBtn && headerAvatar && user) {
+            const initial = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+            headerAvatar.textContent = initial;
+            headerAvatar.title = user.displayName || user.email;
+            
+            headerLoginBtn.style.display = 'none';
+            headerAvatar.style.display = 'flex';
+          }
+        }
+
+        function resetHeaderToLogin() {
+          const headerLoginBtn = document.getElementById('header-login-btn');
+          const headerAvatar = document.getElementById('header-avatar');
+          if (headerLoginBtn && headerAvatar) {
+            headerLoginBtn.style.display = 'inline-flex';
+            headerAvatar.style.display = 'none';
+          }
         }
 
         function showAlertModal(message, type) {
@@ -2023,7 +2219,34 @@
         function setLoadingModal(btnId, loading) {
           const btn = document.getElementById(btnId);
           btn.disabled = loading;
-          btn.textContent = loading ? 'Please wait...' : (btnId === 'signin-btn-modal' ? 'Sign In' : 'Create Account');
+          
+          const buttonTexts = {
+            'signin-btn-modal': loading ? 'Signing in...' : 'Sign In',
+            'signup-btn-modal': loading ? 'Creating account...' : 'Create Account',
+            'forgot-btn-modal': loading ? 'Sending...' : 'Send Reset Link',
+            'change-password-btn-modal': loading ? 'Changing...' : 'Change Password'
+          };
+          
+          btn.textContent = buttonTexts[btnId] || (loading ? 'Please wait...' : 'Submit');
+        }
+
+        function getErrorMessage(error) {
+          switch (error.code) {
+            case 'auth/user-not-found':
+              return 'No account found with this email address.';
+            case 'auth/wrong-password':
+              return 'Incorrect password. Please try again.';
+            case 'auth/email-already-in-use':
+              return 'An account with this email already exists.';
+            case 'auth/weak-password':
+              return 'Password should be at least 6 characters long.';
+            case 'auth/invalid-email':
+              return 'Please enter a valid email address.';
+            case 'auth/popup-closed-by-user':
+              return 'Sign-in popup was closed. Please try again.';
+            default:
+              return error.message || 'An error occurred. Please try again.';
+          }
         }
       </script>
 </body>

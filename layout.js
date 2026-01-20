@@ -43,6 +43,11 @@ function initHeader() {
             }
         });
     }
+
+    // Initialize global auth after header is loaded
+    if (window.globalAuth && typeof window.globalAuth.init === 'function') {
+        window.globalAuth.init();
+    }
 }
 
 function initFooter() {

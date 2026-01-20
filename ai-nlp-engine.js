@@ -13,13 +13,17 @@ class AIUnderstandingEngine {
     this.userPreferences = {
       origin: null,
       destination: null,
-      preferenceType: 'comfort', // or 'speed'
+      preferenceType: 'comfort',
       selectedModes: ['WALKING'],
       avoidAreas: []
     };
     
-    // Gemini integration
-    this.geminiApiKey = geminiApiKey;
+    // IMPORTANT: Replace with your actual Gemini API key from https://aistudio.google.com/app/apikey
+    this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+    
+    if (this.geminiApiKey === 'YOUR_GEMINI_API_KEY') {
+      console.warn('⚠️ WARNING: Using placeholder API key. Get your key from https://aistudio.google.com/app/apikey');
+    }
     this.geminiModel = null;
     this.useGemini = !!this.geminiApiKey;
     this.geminiEndpointBase = 'https://generativelanguage.googleapis.com/v1/models';

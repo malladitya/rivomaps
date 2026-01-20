@@ -18,8 +18,17 @@
                 <li><a href="index.html#demo">Demo</a></li>
                 <li><a href="index.html#contact">Contact</a></li>
             </ul>
-            <button class="btn btn--primary btn--sm" onclick="openAuthModal()">Sign In</button>
-            <a class="btn btn--primary btn--sm" href="Rivo.html">Try the App</a>
+            <a class="btn btn--primary btn--sm" href="rivo.html">Try the App</a>
+            <div id="header-auth-area">
+                <button class="btn btn--primary btn--sm" id="header-login-btn" onclick="openAuthModal()">Sign In</button>
+                <div id="header-avatar" class="user-avatar-modal" style="display:none;cursor:pointer;width:40px;height:40px;font-size:18px;align-items:center;justify-content:center;background:linear-gradient(135deg, #0EA5A2 0%, #0EA5A2 100%);color:white;border-radius:50%;" onclick="openAuthModal()"></div>
+            </div>
         </nav>
     </div>
 </header>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+<!-- Global Auth Manager -->
+<script src="global-auth.js"></script>
