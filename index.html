@@ -12,6 +12,10 @@
     href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap"
     rel="stylesheet">
 
+  <!-- Azure Maps SDK -->
+  <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css">
+  <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+
   <!-- EmailJS SDK -->
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <script src="config.js"></script>
@@ -2249,6 +2253,104 @@
           }
         }
       </script>
+      
+      <script>
+        // ===== AZURE MAPS CONFIGURATION =====
+        const AZURE_MAPS_KEY = 'YOUR_AZURE_MAPS_KEY';
+        
+        let map, datasource, startMarker, endMarker;
+        let startCoords = [76.8, 30.755];
+        let endCoords = [76.78, 30.74];
+        
+        function initAzureMap() {
+          if (AZURE_MAPS_KEY === 'YOUR_AZURE_MAPS_KEY') {
+            document.getElementById('azureMap').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#e8f5f5;color:#0EA5A2;font-size:18px;border-radius:12px;text-align:center;">🗺️ Azure Maps Demo<br><small>Add your API key to activate</small></div>';
+            return;
+          }
+          
+          map = new atlas.Map('azureMap', {
+            center: [76.7794, 30.7333],
+            zoom: 12,
+            view: 'Auto',
+            authOptions: {
+              authType: 'subscriptionKey',
+              subscriptionKey: AZURE_MAPS_KEY
+            },
+            style: 'road'
+          });
+          
+          map.events.add('ready', () => {
+            datasource = new atlas.source.DataSource();
+            map.sources.add(datasource);
+            
+            // Add layers for zones
+            map.layers.add(new atlas.layer.PolygonLayer(datasource, null, {
+              fillColor: ['get', 'fillColor'],
+              fillOpacity: ['get', 'fillOpacity']
+            }));
+            
+            // Add markers
+            startMarker = new atlas.HtmlMarker({
+              position: startCoords,
+              htmlContent: '<div style="background-color:#0EA5A2;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>'
+            });
+            map.markers.add(startMarker);
+            
+            endMarker = new atlas.HtmlMarker({
+              position: endCoords,
+              htmlContent: '<div style="background-color:#214141;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>'
+            });
+            map.markers.add(endMarker);
+          });
+        }
+        
+        // Google Maps Configuration
+        let googleMapInstance;
+        
+        function initGoogleMap() {
+          const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+          if (apiKey === 'YOUR_GOOGLE_MAPS_API_KEY') {
+            document.getElementById('googleMap').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#e8f5f5;color:#0EA5A2;font-size:18px;border-radius:12px;text-align:center;">🗺️ Google Maps Demo<br><small>Add your API key to activate</small></div>';
+            return;
+          }
+          
+          googleMapInstance = new google.maps.Map(document.getElementById('googleMap'), {
+            zoom: 13,
+            center: { lat: 28.6692, lng: 77.4538 },
+            mapTypeId: 'roadmap'
+          });
+        }
+        
+        function toggleGoogleMapType() {
+          if (googleMapInstance) {
+            const currentType = googleMapInstance.getMapTypeId();
+            googleMapInstance.setMapTypeId(currentType === 'roadmap' ? 'satellite' : 'roadmap');
+          }
+        }
+        
+        function centerGoogleMap() {
+          if (googleMapInstance && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(position => {
+              const userLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+              };
+              googleMapInstance.setCenter(userLocation);
+            });
+          }
+        }
+        
+        // Initialize maps when ready
+        document.addEventListener('DOMContentLoaded', () => {
+          setTimeout(() => {
+            initAzureMap();
+            initGoogleMap();
+          }, 1000);
+        });
+      </script>
+      
+      <!-- Google Maps API -->
+      <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initGoogleMap"></script>
 </body>
 
 </html>
