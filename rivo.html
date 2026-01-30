@@ -545,10 +545,6 @@
         }
 
         /* Profile Menu Styles */
-        #userAvatarBtn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(14, 165, 162, 0.4);
-        }
 
         #profileDropdown button:hover {
             background: rgba(14, 165, 162, 0.05);
@@ -599,9 +595,6 @@
 
     <!-- User Profile Menu -->
     <div id="userProfileMenu" style="position: fixed; top: 20px; right: 80px; z-index: 9999; display: none;">
-        <button id="userAvatarBtn" style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #0EA5A2, #14b8a6); color: white; border: 3px solid white; box-shadow: 0 4px 15px rgba(14, 165, 162, 0.3); display: flex; align-items: center; justify-center; font-weight: bold; font-size: 16px; cursor: pointer; transition: all 0.3s;">
-            U
-        </button>
         <div id="profileDropdown" style="display: none; position: absolute; top: 55px; right: 0; width: 280px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15); padding: 16px; border: 1px solid rgba(14, 165, 162, 0.1);">
             <div style="text-align: center; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0;">
                 <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 4px;" id="profileUserName">User</div>
@@ -2620,7 +2613,7 @@
 
         function showUserUI() {
             const userMenu = document.getElementById('userProfileMenu');
-            const userAvatarBtn = document.getElementById('userAvatarBtn');
+            // const userAvatarBtn = document.getElementById('userAvatarBtn');
             const userName = document.getElementById('profileUserName');
             const userEmail = document.getElementById('profileUserEmail');
             
@@ -2631,14 +2624,14 @@
                     ? currentUser.displayName.charAt(0).toUpperCase() 
                     : currentUser.email.charAt(0).toUpperCase();
                 
-                if (userAvatarBtn) userAvatarBtn.textContent = initial;
+                // if (userAvatarBtn) userAvatarBtn.textContent = initial;
                 if (userName) userName.textContent = currentUser.displayName || 'User';
                 if (userEmail) userEmail.textContent = currentUser.email;
             }
         }
 
         function setupProfileMenu() {
-            const avatarBtn = document.getElementById('userAvatarBtn');
+            // const avatarBtn = document.getElementById('userAvatarBtn');
             const dropdown = document.getElementById('profileDropdown');
             const signOutBtn = document.getElementById('signOutBtn');
             const favoritesBtn = document.getElementById('viewFavoritesBtn');
