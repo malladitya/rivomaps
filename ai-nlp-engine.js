@@ -107,8 +107,8 @@ class AIUnderstandingEngine {
       }
     }
 
-    // Fallback to pattern matching
-    return this.processWithPatternMatching(userMessage);
+    // Fallback to pattern matching (now async)
+    return await this.processWithPatternMatching(userMessage);
   }
 
   /**
@@ -360,7 +360,7 @@ Analyze and respond with JSON:
   /**
    * Fallback: Process with pattern matching
    */
-  processWithPatternMatching(userMessage) {
+  async processWithPatternMatching(userMessage) {
     // Clean input
     const cleanMessage = userMessage.toLowerCase().trim();
 
@@ -368,7 +368,7 @@ Analyze and respond with JSON:
     const intent = this.detectIntent(cleanMessage);
 
     // Step 2: Extract Entities (locations, numbers, etc.)
-    const entities = this.extractEntities(cleanMessage);
+    const entities = await this.extractEntities(cleanMessage);
 
     // Step 3: Update user preferences with extracted data
     this.updatePreferences(entities);
@@ -420,7 +420,7 @@ Analyze and respond with JSON:
   /**
    * Extract entities from user message
    */
-  extractEntities(message) {
+  async extractEntities(message) {
     const entities = {
       locations: [],
       coordinates: [],
@@ -441,7 +441,8 @@ Analyze and respond with JSON:
       });
     }
 
-    // Extract location names
+    // Extract location names from database
+    let foundDbLocation = false;
     for (const [locKey, locData] of Object.entries(this.locationDatabase)) {
       for (const alias of locData.aliases) {
         if (message.includes(alias)) {
@@ -451,6 +452,40 @@ Analyze and respond with JSON:
             lng: locData.lng,
             confidence: this.calculateLocationConfidence(message, alias)
           });
+          foundDbLocation = true;
+        }
+      }
+    }
+
+    // Fallback: If no location found in DB, try geocoding any capitalized word (likely a place)
+    if (!foundDbLocation) {
+      // Simple heuristic: look for capitalized words (potential place names)
+      const placeRegex = /\b([A-Z][a-z]+(?: [A-Z][a-z]+)*)\b/g;
+      let placeMatch;
+      let tried = new Set();
+      while ((placeMatch = placeRegex.exec(message)) !== null) {
+        const placeName = placeMatch[1];
+        if (tried.has(placeName.toLowerCase())) continue;
+        tried.add(placeName.toLowerCase());
+        // Call Nominatim geocoding API synchronously (blocking)
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeName)}`;
+          const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          if (resp.ok) {
+            const results = await resp.json();
+            if (results && results.length > 0) {
+              const loc = results[0];
+              entities.locations.push({
+                name: placeName,
+                lat: parseFloat(loc.lat),
+                lng: parseFloat(loc.lon),
+                confidence: 0.8
+              });
+              break; // Only add first geocoded place
+            }
+          }
+        } catch (e) {
+          // Ignore geocoding errors
         }
       }
     }

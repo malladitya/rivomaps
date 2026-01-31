@@ -45,6 +45,14 @@
 </head>
 
 <body>
+
+
+
+  <!-- Weather Forecast Banner (Frontend Only) -->
+  <div id="weatherBanner" style="display:none; background:#fef3c7; color:#b45309; padding:12px 20px; text-align:center; font-size:1.1em; font-weight:600; border-bottom:2px solid #f59e0b;">
+    <span id="weatherText"></span>
+  </div>
+
   <a class="skip-link" href="#main">Skip to main content</a>
 
   <!-- Welcome Popup -->
@@ -1312,7 +1320,7 @@
             Math.sin((from[1] * Math.PI) / 180) *
               Math.cos((to[1] * Math.PI) / 180) *
               Math.cos(dLon);
-          return (Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+          return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
         }
 
         // Determine turn direction from bearing change

@@ -1,3 +1,148 @@
+// ===== FRONTEND-ONLY WEATHER FORECAST FEATURE =====
+const OPENWEATHERMAP_API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY'; // <-- Replace with your API key
+async function fetchWeatherFrontend(location = 'Delhi,IN') {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const weather = data.weather && data.weather[0];
+    const thunderstormCodes = [200,201,202,210,211,212,221,230,231,232];
+    const isThunderstorm = weather && thunderstormCodes.includes(weather.id);
+    const banner = document.getElementById('weatherBanner');
+    const text = document.getElementById('weatherText');
+    if (isThunderstorm) {
+      banner.style.display = 'block';
+      text.textContent = `⚡ Weather Alert: Thunderstorm/Lightning detected! (${weather.description}, ${data.main.temp}°C)`;
+    } else if (weather && weather.description) {
+      banner.style.display = 'block';
+      text.textContent = `Weather: ${weather.description}, ${data.main.temp}°C`;
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    const banner = document.getElementById('weatherBanner');
+    if (banner) banner.style.display = 'none';
+  }
+}
+
+
+// Show weather only for users at their current location (no fallback), with Demo Mode support
+document.addEventListener('DOMContentLoaded', () => {
+  const demoToggle = document.getElementById('demoModeToggle');
+  let demoMode = false;
+
+  function showWeatherForCoords(lat, lon) {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const weather = data.weather && data.weather[0];
+        const thunderstormCodes = [200,201,202,210,211,212,221,230,231,232];
+        const isThunderstorm = weather && thunderstormCodes.includes(weather.id);
+        const banner = document.getElementById('weatherBanner');
+        const text = document.getElementById('weatherText');
+        if (isThunderstorm) {
+          banner.style.display = 'block';
+          text.textContent = `⚡ Weather Alert: Thunderstorm/Lightning detected! (${weather.description}, ${data.main.temp}°C)`;
+        } else if (weather && weather.description) {
+          banner.style.display = 'block';
+          text.textContent = `Weather: ${weather.description}, ${data.main.temp}°C`;
+        } else {
+          banner.style.display = 'none';
+        }
+      })
+      .catch(() => {
+        const banner = document.getElementById('weatherBanner');
+        if (banner) banner.style.display = 'none';
+      });
+  }
+
+  function updateWeather() {
+    if (demoMode) {
+      // Use a fixed location with frequent thunderstorms (e.g., Miami, FL, USA)
+      showWeatherForCoords(25.7617, -80.1918);
+    } else if (typeof OPENWEATHERMAP_API_KEY === 'string' && OPENWEATHERMAP_API_KEY !== 'YOUR_OPENWEATHERMAP_API_KEY') {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            showWeatherForCoords(pos.coords.latitude, pos.coords.longitude);
+          },
+          () => {
+            // Hide banner if user denies or geolocation fails
+            const banner = document.getElementById('weatherBanner');
+            if (banner) banner.style.display = 'none';
+          }
+        );
+      } else {
+        // Hide banner if geolocation not available
+        const banner = document.getElementById('weatherBanner');
+        if (banner) banner.style.display = 'none';
+      }
+    }
+  }
+
+  if (demoToggle) {
+    demoToggle.addEventListener('change', function() {
+      demoMode = this.checked;
+      updateWeather();
+    });
+  }
+
+  updateWeather();
+});
+// ===== WEATHER FORECAST FEATURE =====
+async function fetchWeatherAndShowBanner(location = 'Delhi,IN') {
+  try {
+    const res = await fetch('/api/weather?location=' + encodeURIComponent(location));
+    const data = await res.json();
+    const banner = document.getElementById('weatherBanner');
+    const text = document.getElementById('weatherText');
+    if (data.thunderWarning) {
+      banner.style.display = 'block';
+      text.textContent = `⚡ Weather Alert: ${data.thunderWarning} (${data.description}, ${data.temperature}°C)`;
+    } else if (data.description) {
+      banner.style.display = 'block';
+      text.textContent = `Weather: ${data.description}, ${data.temperature}°C`;
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    // Hide banner on error
+    const banner = document.getElementById('weatherBanner');
+    if (banner) banner.style.display = 'none';
+  }
+}
+
+// Call on page load (default location, or use geolocation if available)
+document.addEventListener('DOMContentLoaded', () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        fetch(`/api/weather?location=${lat},${lon}`)
+          .then(res => res.json())
+          .then(data => {
+            const banner = document.getElementById('weatherBanner');
+            const text = document.getElementById('weatherText');
+            if (data.thunderWarning) {
+              banner.style.display = 'block';
+              text.textContent = `⚡ Weather Alert: ${data.thunderWarning} (${data.description}, ${data.temperature}°C)`;
+            } else if (data.description) {
+              banner.style.display = 'block';
+              text.textContent = `Weather: ${data.description}, ${data.temperature}°C`;
+            } else {
+              banner.style.display = 'none';
+            }
+          })
+          .catch(() => fetchWeatherAndShowBanner());
+      },
+      () => fetchWeatherAndShowBanner()
+    );
+  } else {
+    fetchWeatherAndShowBanner();
+  }
+});
 // Update year (Handled by layout.js)
 // document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -679,15 +824,64 @@ function extractLocations(message) {
       { name: 'Chandigarh', coords: [76.7794, 30.7333] },
       { name: 'Ghaziabad', coords: [77.4538, 28.6692] },
       { name: 'Noida', coords: [77.3910, 28.5921] },
-      { name: 'Panipat', coords: [79.3910, 29.3910] }
+      { name: 'Panipat', coords: [79.3910, 29.3910] },
+      { name: 'cgc landran sector 95', coords: [76.5741, 30.5852] },
+      { name: 'alante mall', coords: [76.6905, 30.7046] }
     ];
 
+    let found = false;
     for (let place of placePatterns) {
       if (message_lower.includes(place.name.toLowerCase())) {
         locations.value = place.coords;
         locations.confidence = 0.85;
+        found = true;
         break;
       }
+    }
+
+    // If not found, use geocoding API (OpenStreetMap Nominatim)
+    if (!found) {
+      window.geocodePlaceName = async function(placeName, callback, contextMessage) {
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeName)}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const lon = parseFloat(data[0].lon);
+            const lat = parseFloat(data[0].lat);
+            callback([lon, lat], contextMessage);
+          } else {
+            callback(null, contextMessage);
+          }
+        } catch (e) {
+          callback(null, contextMessage);
+        }
+      };
+      // Try to extract a place name (simple heuristic: last wordy phrase)
+      const match = message.match(/(?:at|to|from|in|near|destination|origin|start|end)\s+([\w\s\-\d]+)$/i);
+      const placeName = match ? match[1].trim() : message.trim();
+      window.geocodePlaceName(placeName, function(coords, contextMessage) {
+        if (coords) {
+          // Set as current location or destination in aiAssistant
+          if (message_lower.includes('origin') || message_lower.includes('start') || message_lower.includes('from') || message_lower.includes('i am at')) {
+            window.aiAssistant = window.aiAssistant || {};
+            window.aiAssistant.currentUserLocation = coords;
+          } else if (message_lower.includes('destination') || message_lower.includes('to') || message_lower.includes('end') || message_lower.includes('take me to')) {
+            window.aiAssistant = window.aiAssistant || {};
+            window.aiAssistant.currentDestination = coords;
+          }
+          // Re-trigger chatbot or navigation after geocoding is done
+          if (window.sendHarborMessage) {
+            setTimeout(() => {
+              const input = document.getElementById('harbor-input');
+              if (input) {
+                input.value = contextMessage || message;
+                window.sendHarborMessage();
+              }
+            }, 300);
+          }
+        }
+      }, message);
     }
   }
 

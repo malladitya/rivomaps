@@ -306,6 +306,44 @@
     widgetContainer.innerHTML = html;
     document.body.appendChild(widgetContainer);
 
+    // Sample list of calm places (can be replaced with dynamic data)
+    // Calm places near SAS Nagar (Mohali)
+    const calmPlaces = [
+        { name: 'Sukhna Lake', coords: [76.8100, 30.7415] },
+        { name: 'Punjab Cricket Association Stadium Park', coords: [76.7221, 30.6976] },
+        { name: 'Silvi Park', coords: [76.7087, 30.7046] },
+        { name: 'Rose Garden', coords: [76.7722, 30.7520] },
+        { name: 'Japanese Garden', coords: [76.7794, 30.7132] },
+        { name: 'Leisure Valley', coords: [76.7737, 30.7410] },
+        { name: 'Thunder Zone Amusement & Water Park', coords: [76.6902, 30.6667] }
+    ];
+
+    // Calculate distance between two [lon, lat] points in meters
+    function calcDistance(a, b) {
+        const R = 6371000;
+        const lat1 = a[1] * Math.PI / 180;
+        const lat2 = b[1] * Math.PI / 180;
+        const dLat = (b[1] - a[1]) * Math.PI / 180;
+        const dLon = (b[0] - a[0]) * Math.PI / 180;
+        const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+        return R * c;
+    }
+
+    // Find nearest calm place to userCoords ([lon, lat])
+    function getNearestCalmPlace(userCoords) {
+        if (!userCoords) return null;
+        let minDist = Infinity, nearest = null;
+        for (const place of calmPlaces) {
+            const dist = calcDistance(userCoords, place.coords);
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = { ...place, distance: Math.round(dist) };
+            }
+        }
+        return nearest;
+    }
+
     // Comprehensive knowledge base for Harbor
     const harborKnowledge = {
         // Knowledge topics
@@ -359,7 +397,89 @@
         // Intelligent response generator
         getResponse: function(message) {
             const msg = message.toLowerCase().trim();
-            
+
+            // Custom answers for specific user questions (with dynamic distance/time if available)
+            // 1. Sensory-friendly places nearby (flexible matching, now uses real nearest calm place)
+            if ((msg.includes('sensory') || msg.includes('calm') || msg.includes('quiet')) && (msg.includes('place') || msg.includes('spot') || msg.includes('area')) && (msg.includes('nearby') || msg.includes('close') || msg.includes('around') || msg.includes('near'))) {
+                // Try to get user location from global state (aiAssistant, navigationState)
+                let userCoords = null;
+                if (window.aiAssistant && window.aiAssistant.currentUserLocation) {
+                    userCoords = window.aiAssistant.currentUserLocation;
+                } else if (window.navigationState && window.navigationState.currentLocation) {
+                    userCoords = window.navigationState.currentLocation;
+                }
+                // If not available, try browser geolocation (async)
+                if (!userCoords && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        const coords = [pos.coords.longitude, pos.coords.latitude];
+                        window.aiAssistant = window.aiAssistant || {};
+                        window.aiAssistant.currentUserLocation = coords;
+                        // Re-trigger chatbot with same message to get real answer
+                        setTimeout(() => {
+                            if (window.sendHarborMessage) {
+                                const input = document.getElementById('harbor-input');
+                                if (input) {
+                                    input.value = message;
+                                    window.sendHarborMessage();
+                                }
+                            }
+                        }, 300);
+                    });
+                    return '⏳ Locating you... Please allow location access to find the nearest calm space.';
+                }
+                const nearest = getNearestCalmPlace(userCoords);
+                if (nearest) {
+                    return (
+                        '🧘 You are close to a calm and safe space.\n' +
+                        `The nearest sensory-friendly place is ${nearest.name} (${nearest.distance} meters away).\n` +
+                        'This place is known for low noise, softer lighting, and fewer people, making it a good spot to take a break.'
+                    );
+                } else {
+                    return (
+                        '🧘 You are close to a calm and safe space.\n' +
+                        'The nearest sensory-friendly place is not available (location unknown).\n' +
+                        'Please enable location access and try again.'
+                    );
+                }
+            }
+            // 2. Simple step-by-step directions
+            if (msg.includes('guide me') && (msg.includes('simple') || msg.includes('step-by-step'))) {
+                let meters = (window.navigationState && window.navigationState.totalDistanceRemaining) ? Math.round(window.navigationState.totalDistanceRemaining) : 'X';
+                let minutes = (window.navigationState && window.navigationState.totalDistanceRemaining) ? Math.round(window.navigationState.totalDistanceRemaining / 70) : 'X'; // assume 70m/min walking
+                let dest = window.nearestCalmSpaceName || 'the nearest calm space';
+                return (
+                    '🗺️ Here is a slow and easy path to follow:\n' +
+                    'Take a deep breath.\n' +
+                    `Walk straight ahead for [${meters} meters / ${minutes} minutes].\n` +
+                    'Turn left/right at the next clear landmark (like a sign, tree, or building).\n' +
+                    `Continue walking slowly until you reach [${dest}].\n` +
+                    'You can stop at any time if you need to rest.\n' +
+                    'You are doing great. There is no rush.'
+                );
+            }
+            // 3. Distance from a safe or calm space
+            if ((msg.includes('how far') || msg.includes('distance')) && (msg.includes('safe') || msg.includes('calm'))) {
+                let meters = (window.navigationState && window.navigationState.totalDistanceRemaining) ? Math.round(window.navigationState.totalDistanceRemaining) : 'X';
+                let minutes = (window.navigationState && window.navigationState.totalDistanceRemaining) ? Math.round(window.navigationState.totalDistanceRemaining / 70) : 'X';
+                return (
+                    `📏 You are about [${minutes} minutes or ${meters} meters] away from this calm space.\n` +
+                    'That is a short and manageable distance.\n' +
+                    'Help is nearby, and you are safe.'
+                );
+            }
+            // 4. Traveling this route more comfortably next time
+            if (msg.includes('travel this route more comfortably') || (msg.includes('travel') && msg.includes('comfortably'))) {
+                return (
+                    '😊 To make this journey easier in the future, you can:\n' +
+                    '• Travel during quieter times of the day\n' +
+                    '• Use noise-canceling headphones or earplugs\n' +
+                    '• Choose routes with less traffic and fewer crowds\n' +
+                    '• Save this calm location in Rivo as a favorite safe place\n' +
+                    '• Take breaks often — it’s okay to pause\n' +
+                    'Rivo is always here to help you move at your own pace'
+                );
+            }
+
             // Check which topics match the question
             const matchedTopics = [];
             for (const [topic, data] of Object.entries(this.topics)) {
@@ -370,7 +490,7 @@
                     }
                 }
             }
-            
+
             // If we found matching topics, return them
             if (matchedTopics.length > 0) {
                 if (matchedTopics.length === 1) {
@@ -380,7 +500,7 @@
                     return matchedTopics.slice(0, 3).join('\n\n---\n\n');
                 }
             }
-            
+
             // Smart fallback for any other question
             return this.generateSmartAnswer(msg);
         },
@@ -494,9 +614,9 @@
         console.log('✅ AIUnderstandingEngine found!');
         
         // Try Gemini first (user should set their API key here)
-        const geminiApiKey = "AIzaSyAW7APyJgT4xNDCD9vFwY1jjnfi74ozNtE";
-        
-        if (geminiApiKey && geminiApiKey !== "YOUR_API_KEY_HERE") {
+        const geminiApiKey = "AIzaSyDUo8uIJPW1AIzkGLnkUjFViNgaf9AlkQY";
+        // Accept any non-empty key, only skip if it's a known placeholder
+        if (geminiApiKey && geminiApiKey !== "YOUR_API_KEY_HERE" && geminiApiKey !== "YOUR_GEMINI_API_KEY") {
             const success = await window.initializeGeminiAI(geminiApiKey);
             if (!success) {
                 console.log('⚠️ Gemini failed, using fallback');
@@ -528,7 +648,6 @@
     window.sendHarborMessage = async function() {
         const input = document.getElementById('harbor-input');
         const message = input.value.trim();
-        
         if (!message) return;
 
         const messagesDiv = document.getElementById('harbor-messages');
@@ -555,38 +674,30 @@
         let responseText = '';
         let aiResponse = null;
 
-        console.log('🔍 AI Engine status:', {
-            aiEngineExists: !!aiEngine,
-            geminiLoaded: geminiLoaded,
-            aiEngineUseGemini: aiEngine?.useGemini
-        });
-
         // Try AI Engine first (includes Gemini if loaded)
-        if (aiEngine) {
+        const msg = message.toLowerCase().trim();
+        const isSensoryPlaceQuery = ((msg.includes('sensory') || msg.includes('calm') || msg.includes('quiet')) && (msg.includes('place') || msg.includes('spot') || msg.includes('area')) && (msg.includes('nearby') || msg.includes('close') || msg.includes('around') || msg.includes('near')));
+        // If both origin and destination are set, trigger directions
+        const userLoc = (window.aiAssistant && window.aiAssistant.currentUserLocation);
+        const destLoc = (window.aiAssistant && window.aiAssistant.currentDestination);
+        if (userLoc && destLoc && (msg.includes('guide') || msg.includes('directions') || msg.includes('step-by-step'))) {
+            // Generate and show step-by-step directions
+            if (typeof window.planComfortableRoute === 'function') {
+                window.planComfortableRoute(userLoc, destLoc, false);
+            }
+            responseText = '🗺️ Here are your simple step-by-step directions! (See map for details)';
+        } else if (isSensoryPlaceQuery) {
+            responseText = harborKnowledge.getResponse(message);
+        } else if (typeof aiEngine !== 'undefined' && aiEngine) {
             try {
                 console.log('🤖 Processing with AI Engine...');
                 aiResponse = await aiEngine.processUserMessage(message);
                 responseText = aiResponse.message;
-                
-                // Log AI details
-                console.log('🤖 AI Response:', {
-                    userMessage: message,
-                    intent: aiResponse.intent,
-                    confidence: aiResponse.confidence,
-                    source: aiResponse.source || 'pattern-matching',
-                    action: aiResponse.action,
-                    data: aiResponse.data
-                });
-                
-                // Handle actions and provide visual feedback
                 if (aiResponse.action) {
                     switch(aiResponse.action) {
                         case 'CALCULATE_ROUTE':
                             responseText += '\n\n🗺️ Displaying route on map...';
-                            if (window.handleAIAction) {
-                                window.handleAIAction(aiResponse);
-                            }
-                            // Scroll to map
+                            if (window.handleAIAction) window.handleAIAction(aiResponse);
                             setTimeout(() => {
                                 const mapContainer = document.getElementById('myMap') || document.querySelector('.map-container');
                                 if (mapContainer) {
@@ -594,32 +705,20 @@
                                 }
                             }, 500);
                             break;
-                            
                         case 'SET_ORIGIN':
                             responseText += '\n\n📍 Origin marked on map!';
-                            if (window.handleAIAction) {
-                                window.handleAIAction(aiResponse);
-                            }
+                            if (window.handleAIAction) window.handleAIAction(aiResponse);
                             break;
-                            
                         case 'SET_DESTINATION':
                             responseText += '\n\n🎯 Destination set! Set origin to calculate route.';
-                            if (window.handleAIAction) {
-                                window.handleAIAction(aiResponse);
-                            }
+                            if (window.handleAIAction) window.handleAIAction(aiResponse);
                             break;
-                            
                         case 'START_NAVIGATION':
                             responseText += '\n\n🚀 Starting turn-by-turn navigation!';
-                            if (window.handleAIAction) {
-                                window.handleAIAction(aiResponse);
-                            }
+                            if (window.handleAIAction) window.handleAIAction(aiResponse);
                             break;
-                            
                         default:
-                            if (window.handleAIAction) {
-                                window.handleAIAction(aiResponse);
-                            }
+                            if (window.handleAIAction) window.handleAIAction(aiResponse);
                     }
                 }
             } catch (error) {

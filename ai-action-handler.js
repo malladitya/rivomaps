@@ -87,41 +87,60 @@ window.handleAIAction = function(aiResponse) {
  */
 function handleSetOrigin(location) {
   console.log('Setting origin:', location);
-  
-  // Store in window for access by map script
-  if (!window.navigationState) window.navigationState = {};
-  window.navigationState.origin = location;
-  
-  // Get coordinates
-  const lat = location.lat || location[1];
-  const lng = location.lng || location[0];
-  
-  // Add marker to map via Azure Maps
-  if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
-    const originFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
-      name: 'Origin', 
-      isOrigin: true 
-    });
-    window.datasource.add(originFeature);
-    console.log('✅ Origin marker added to map at:', lat, lng);
+  // Helper to add marker after geocoding
+  function addOriginMarker(lat, lng) {
+    if (!window.navigationState) window.navigationState = {};
+    window.navigationState.origin = { lat, lng };
+    // Add marker to map via Azure Maps
+    if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
+      const originFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
+        name: 'Origin', 
+        isOrigin: true 
+      });
+      window.datasource.add(originFeature);
+      console.log('✅ Origin marker added to map at:', lat, lng);
+    }
+    // Leaflet (rivo.html) support
+    try {
+      if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+        if (typeof startCoords !== 'undefined') {
+          startCoords = [lng, lat];
+        }
+        if (typeof startMarker !== 'undefined' && startMarker) {
+          startMarker.setLatLng([lat, lng]);
+        }
+      }
+    } catch (error) {
+      console.warn('Leaflet origin update failed:', error);
+    }
+    console.log('✅ Origin set:', { lat, lng });
   }
 
-  // Leaflet (rivo.html) support
-  try {
-    if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
-      if (typeof startCoords !== 'undefined') {
-        startCoords = [lng, lat];
-      }
-      if (typeof startMarker !== 'undefined' && startMarker) {
-        startMarker.setLatLng([lat, lng]);
-      }
-    }
-  } catch (error) {
-    console.warn('Leaflet origin update failed:', error);
+  // If already coordinates
+  if (location && typeof location === 'object' && ('lat' in location) && ('lng' in location)) {
+    addOriginMarker(location.lat, location.lng);
+    return;
   }
-  
-  // Log for debugging
-  console.log('✅ Origin set:', location);
+  // If array [lng, lat]
+  if (Array.isArray(location) && location.length === 2 && typeof location[0] === 'number' && typeof location[1] === 'number') {
+    addOriginMarker(location[1], location[0]);
+    return;
+  }
+  // If string, geocode
+  if (typeof location === 'string') {
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json`)
+      .then(res => res.json())
+      .then(results => {
+        if (results && results[0]) {
+          addOriginMarker(parseFloat(results[0].lat), parseFloat(results[0].lon));
+        } else {
+          alert('Could not find location: ' + location);
+        }
+      })
+      .catch(() => alert('Geocoding failed for: ' + location));
+    return;
+  }
+  alert('Invalid origin location');
 }
 
 /**
@@ -129,39 +148,59 @@ function handleSetOrigin(location) {
  */
 function handleSetDestination(location) {
   console.log('Setting destination:', location);
-  
-  if (!window.navigationState) window.navigationState = {};
-  window.navigationState.destination = location;
-  
-  // Get coordinates
-  const lat = location.lat || location[1];
-  const lng = location.lng || location[0];
-  
-  // Add destination marker to Azure Maps
-  if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
-    const destFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
-      name: 'Destination', 
-      isDestination: true 
-    });
-    window.datasource.add(destFeature);
-    console.log('✅ Destination marker added to map at:', lat, lng);
+  function addDestinationMarker(lat, lng) {
+    if (!window.navigationState) window.navigationState = {};
+    window.navigationState.destination = { lat, lng };
+    // Add destination marker to Azure Maps
+    if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
+      const destFeature = new atlas.data.Feature(new atlas.data.Point([lng, lat]), { 
+        name: 'Destination', 
+        isDestination: true 
+      });
+      window.datasource.add(destFeature);
+      console.log('✅ Destination marker added to map at:', lat, lng);
+    }
+    // Leaflet (rivo.html) support
+    try {
+      if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
+        if (typeof endCoords !== 'undefined') {
+          endCoords = [lng, lat];
+        }
+        if (typeof endMarker !== 'undefined' && endMarker) {
+          endMarker.setLatLng([lat, lng]);
+        }
+      }
+    } catch (error) {
+      console.warn('Leaflet destination update failed:', error);
+    }
+    console.log('✅ Destination set:', { lat, lng });
   }
 
-  // Leaflet (rivo.html) support
-  try {
-    if (typeof L !== 'undefined' && typeof map !== 'undefined' && map) {
-      if (typeof endCoords !== 'undefined') {
-        endCoords = [lng, lat];
-      }
-      if (typeof endMarker !== 'undefined' && endMarker) {
-        endMarker.setLatLng([lat, lng]);
-      }
-    }
-  } catch (error) {
-    console.warn('Leaflet destination update failed:', error);
+  // If already coordinates
+  if (location && typeof location === 'object' && ('lat' in location) && ('lng' in location)) {
+    addDestinationMarker(location.lat, location.lng);
+    return;
   }
-  
-  console.log('✅ Destination set:', location);
+  // If array [lng, lat]
+  if (Array.isArray(location) && location.length === 2 && typeof location[0] === 'number' && typeof location[1] === 'number') {
+    addDestinationMarker(location[1], location[0]);
+    return;
+  }
+  // If string, geocode
+  if (typeof location === 'string') {
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json`)
+      .then(res => res.json())
+      .then(results => {
+        if (results && results[0]) {
+          addDestinationMarker(parseFloat(results[0].lat), parseFloat(results[0].lon));
+        } else {
+          alert('Could not find location: ' + location);
+        }
+      })
+      .catch(() => alert('Geocoding failed for: ' + location));
+    return;
+  }
+  alert('Invalid destination location');
 }
 
 /**
@@ -170,62 +209,26 @@ function handleSetDestination(location) {
 function handleCalculateRoute(data) {
   console.log('Calculating route:', data);
   
-  const { origin, destination, preference, modes } = data;
-  
-  if (!window.navigationState) window.navigationState = {};
-  window.navigationState.routePreference = preference;
-  window.navigationState.modes = modes;
-  
-  // Get coordinates
-  const originCoords = [origin.lng || origin[0], origin.lat || origin[1]];
-  const destCoords = [destination.lng || destination[0], destination.lat || destination[1]];
-  
-  console.log('Route from:', originCoords, 'to:', destCoords);
-  
-  // Leaflet (rivo.html) route calculation
-  if (typeof calculateAndDisplayRoute === 'function') {
-    try {
-      if (typeof startCoords !== 'undefined') {
-        startCoords = originCoords;
-      }
-      if (typeof endCoords !== 'undefined') {
-        endCoords = destCoords;
-      }
-      if (typeof startMarker !== 'undefined' && startMarker) {
-        startMarker.setLatLng([originCoords[1], originCoords[0]]);
-      }
-      if (typeof endMarker !== 'undefined' && endMarker) {
-        endMarker.setLatLng([destCoords[1], destCoords[0]]);
-      }
-      calculateAndDisplayRoute(false);
-      console.log('🛣️ Route displayed on Leaflet map');
-      return;
-    } catch (error) {
-      console.warn('Leaflet route calculation failed:', error);
-    }
+  const { origin, destination } = data;
+  // Convert to [lng, lat] arrays if needed
+  let originCoords = [origin.lng || origin[0], origin.lat || origin[1]];
+  let destCoords = [destination.lng || destination[0], destination.lat || destination[1]];
+  // Set global startCoords/endCoords for Leaflet logic
+  if (typeof window.startCoords !== 'undefined') window.startCoords = originCoords;
+  if (typeof window.endCoords !== 'undefined') window.endCoords = destCoords;
+  // Move markers if present
+  if (typeof window.startMarker !== 'undefined' && window.startMarker) {
+    window.startMarker.setLatLng([originCoords[1], originCoords[0]]);
   }
-
-  // Trigger route calculation via the global planComfortableRoute function (Azure Maps)
-  if (typeof window.planComfortableRoute === 'function') {
-    window.planComfortableRoute(originCoords, destCoords, false);
-    console.log(`🛣️ Route displayed on map (${preference} preference)`);
-  } else if (typeof window.map !== 'undefined' && window.map && typeof window.datasource !== 'undefined') {
-    // Fallback: manually draw the route
-    const routeCoords = [originCoords, destCoords]; // Simple direct route
-    const routeLineString = new atlas.data.LineString(routeCoords);
-    const routeFeature = new atlas.data.Feature(routeLineString, { isRoute: true });
-    window.datasource.add(routeFeature);
-    
-    // Center map on route
-    if (typeof atlas !== 'undefined' && atlas.data && atlas.data.BoundingBox) {
-      const bounds = atlas.data.BoundingBox.fromData([
-        new atlas.data.Point(originCoords),
-        new atlas.data.Point(destCoords)
-      ]);
-      window.map.setCamera({ bounds: bounds, padding: 50 });
-    }
-    
-    console.log(`🛣️ Route drawn directly on map`);
+  if (typeof window.endMarker !== 'undefined' && window.endMarker) {
+    window.endMarker.setLatLng([destCoords[1], destCoords[0]]);
+  }
+  // Call Leaflet route function
+  if (typeof window.calculateAndDisplayRoute === 'function') {
+    window.calculateAndDisplayRoute(false);
+    console.log('🛣️ Route displayed on Leaflet/OSM map');
+  } else {
+    console.warn('Leaflet route function not found.');
   }
 }
 
