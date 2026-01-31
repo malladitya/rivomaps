@@ -310,7 +310,7 @@ window.getAIEngine = function() {
   if (typeof AIUnderstandingEngine !== 'undefined') {
     // Create or return existing instance
     if (!window.aiEngineInstance) {
-      window.aiEngineInstance = new AIUnderstandingEngine();
+      window.aiEngineInstance = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
     }
     return window.aiEngineInstance;
   }

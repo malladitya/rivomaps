@@ -267,7 +267,7 @@
         // Initialize AI Engine
         window.addEventListener('load', function() {
             if (typeof AIUnderstandingEngine !== 'undefined') {
-                aiEngine = new AIUnderstandingEngine();
+                aiEngine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
                 console.log('✅ AI Understanding Engine loaded successfully!');
                 updateStatus('AI Engine Ready! ✅');
             } else {

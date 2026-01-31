@@ -125,10 +125,10 @@ Happy navigating! 🧭✨
 
 // Auto-check if Gemini is set up
 setTimeout(() => {
-  const apiKey = localStorage.getItem('geminiApiKey');
-  if (apiKey) {
-    console.log('✅ Gemini API key found! Initializing...');
-  } else {
-    console.log('⚠️ No Gemini API key set. Run: setGeminiApiKey("YOUR_KEY")');
-  }
+   const apiKey = window.CONFIG?.geminiApiKey || localStorage.getItem('geminiApiKey');
+   if (apiKey && apiKey !== 'YOUR_GEMINI_API_KEY') {
+      console.log('✅ Gemini API key found! Initializing...');
+   } else {
+      console.log('⚠️ No Gemini API key set. Run: setGeminiApiKey("YOUR_KEY")');
+   }
 }, 1000);

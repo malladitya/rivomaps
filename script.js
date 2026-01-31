@@ -1029,7 +1029,7 @@ function getAIResponse(userMessage) {
   // Use the AI Understanding Engine if available
   if (typeof AIUnderstandingEngine !== 'undefined') {
     if (!window.aiEngine) {
-      window.aiEngine = new AIUnderstandingEngine();
+      window.aiEngine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
     }
     const aiResult = window.aiEngine.processUserMessage(userMessage);
     
