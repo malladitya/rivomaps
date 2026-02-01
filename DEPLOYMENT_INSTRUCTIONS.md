@@ -10,15 +10,15 @@
 
    **Secret 1:**
    - Name: `GEMINI_API_KEY`
-   - Value: `AIzaSyC1O5I8sdt9n0kUix5R6gMv9sPmB1RSFA4`
+   - Value: `Your Gemini API key from Google AI Studio`
 
    **Secret 2:**
    - Name: `OPENWEATHERMAP_API_KEY`
-   - Value: `b74c01ac989158152c0e93df14d15ba1`
+   - Value: `Your OpenWeatherMap API key`
 
    **Secret 3:**
    - Name: `EMAILJS_PUBLIC_KEY`
-   - Value: `your_public_id` (replace with your actual EmailJS key)
+   - Value: `Your EmailJS public key`
 
 3. **Enable GitHub Pages**
    - Go to `Settings` → `Pages`
