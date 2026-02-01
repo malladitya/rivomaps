@@ -6,21 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// API routes BEFORE static files
-const { 
-  calculateDistance, 
-  findNearbyZones, 
-  validateAndMergeReport,
-  updateUserReputation,
-  flagZone,
-  getZoneStats,
-  cleanupExpiredZones,
-  VERIFICATION_THRESHOLD,
-  FALSE_REPORT_THRESHOLD,
-  GEOFENCE_RADIUS_METERS
-} = require('./backend/services/zoneValidation');
-
-// In-memory storage with validation (upgrade to MongoDB when ready)
+// In-memory storage
 const reports = { 
   noise: [], 
   crowds: [], 
@@ -29,15 +15,22 @@ const reports = {
   users: {}
 };
 
+const { calculateDistance, getZoneStats, VERIFICATION_THRESHOLD, FALSE_REPORT_THRESHOLD, GEOFENCE_RADIUS_METERS } = require('./backend/services/zoneValidation');
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API working', timestamp: new Date() });
+});
+
 // Get all reports and zones
 app.get('/api/reports', (req, res) => {
-  console.log('GET /api/reports called');
+  console.log('GET /api/reports');
   res.json(reports);
 });
 
-// Get verified zones only
+// Get verified zones
 app.get('/api/zones/verified', (req, res) => {
-  console.log('GET /api/zones/verified called');
+  console.log('GET /api/zones/verified');
   const verifiedZones = reports.zones
     .filter(z => z.verified && z.isActive)
     .map(z => getZoneStats(z));
@@ -46,7 +39,7 @@ app.get('/api/zones/verified', (req, res) => {
 
 // Get all active zones
 app.get('/api/zones', (req, res) => {
-  console.log('GET /api/zones called');
+  console.log('GET /api/zones');
   const now = new Date();
   const activeZones = reports.zones
     .filter(z => z.isActive && z.expiresAt > now)
@@ -56,7 +49,7 @@ app.get('/api/zones', (req, res) => {
 
 // Report noise
 app.post('/api/reports/noise', (req, res) => {
-  console.log('POST /api/reports/noise called with:', req.body);
+  console.log('POST /api/reports/noise', req.body);
   const { userId, lat, lng, severity, description, photoUrl } = req.body;
   
   if (!userId || lat === undefined || lng === undefined) {
@@ -74,7 +67,6 @@ app.post('/api/reports/noise', (req, res) => {
   let justVerified = false;
 
   if (nearbyZones.length === 0) {
-    // Create new zone
     zone = {
       id: Date.now(),
       location: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
@@ -97,7 +89,6 @@ app.post('/api/reports/noise', (req, res) => {
     reports.zones.push(zone);
     isNew = true;
   } else {
-    // Merge with existing zone
     zone = nearbyZones[0];
     zone.reportCount += 1;
     zone.severity = Math.round((zone.severity + (severity || 5)) / 2);
@@ -105,7 +96,6 @@ app.post('/api/reports/noise', (req, res) => {
     zone.supportingReports.push(userId);
     zone.updatedAt = new Date();
 
-    // Auto-verify if threshold met
     if (zone.reportCount >= VERIFICATION_THRESHOLD && !zone.verified) {
       zone.verified = true;
       zone.verifiedAt = new Date();
@@ -113,7 +103,6 @@ app.post('/api/reports/noise', (req, res) => {
     }
   }
 
-  // Update user reputation
   if (!reports.users[userId]) {
     reports.users[userId] = {
       totalReports: 0,
@@ -147,6 +136,7 @@ app.post('/api/reports/noise', (req, res) => {
 
 // Report crowds
 app.post('/api/reports/crowd', (req, res) => {
+  console.log('POST /api/reports/crowd');
   const { userId, lat, lng, severity, description, photoUrl } = req.body;
   
   const nearbyZones = reports.zones.filter(z => {
@@ -191,6 +181,7 @@ app.post('/api/reports/crowd', (req, res) => {
 
 // Report construction
 app.post('/api/reports/construction', (req, res) => {
+  console.log('POST /api/reports/construction');
   const { userId, lat, lng, severity, description, photoUrl } = req.body;
   
   const nearbyZones = reports.zones.filter(z => {
@@ -237,11 +228,7 @@ app.post('/api/reports/construction', (req, res) => {
 app.get('/api/users/:userId/reputation', (req, res) => {
   const user = reports.users[req.params.userId];
   if (!user) {
-    return res.json({ 
-      reputationScore: 50, 
-      status: 'new',
-      message: 'New user' 
-    });
+    return res.json({ reputationScore: 50, status: 'new', message: 'New user' });
   }
   res.json({
     totalReports: user.totalReports,
@@ -253,7 +240,7 @@ app.get('/api/users/:userId/reputation', (req, res) => {
   });
 });
 
-// Flag a zone as suspicious
+// Flag a zone
 app.post('/api/zones/:zoneId/flag', (req, res) => {
   const { reason } = req.body;
   const zone = reports.zones.find(z => z.id == req.params.zoneId);
@@ -266,7 +253,6 @@ app.post('/api/zones/:zoneId/flag', (req, res) => {
   zone.flaggedAt = new Date();
   zone.flagReason = reason;
 
-  // Flag the original reporter
   const reporter = reports.users[zone.reportedBy];
   if (reporter) {
     reporter.flaggedReports += 1;
@@ -278,7 +264,7 @@ app.post('/api/zones/:zoneId/flag', (req, res) => {
   res.json({ message: 'Zone flagged', zone: getZoneStats(zone) });
 });
 
-// Admin dashboard stats
+// Admin stats
 app.get('/api/admin/stats', (req, res) => {
   const totalZones = reports.zones.length;
   const verifiedZones = reports.zones.filter(z => z.verified).length;
@@ -295,11 +281,10 @@ app.get('/api/admin/stats', (req, res) => {
   });
 });
 
-// Static files AFTER API routes
+// Serve static files LAST
 app.use(express.static(path.join(__dirname)));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Zone Validation Server running on http://localhost:${PORT}`));
-
-module.exports = app;
-
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Zone Validation Server running on http://localhost:${PORT}`);
+});
