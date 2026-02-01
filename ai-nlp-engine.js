@@ -20,12 +20,14 @@ class AIUnderstandingEngine {
     
     // IMPORTANT: Replace with your actual Gemini API key from https://aistudio.google.com/app/apikey
     this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+    console.log('🔑 API Key configured:', this.geminiApiKey ? this.geminiApiKey.substring(0, 20) + '...' : 'None');
     
     if (this.geminiApiKey === 'YOUR_GEMINI_API_KEY') {
       console.warn('⚠️ WARNING: Using placeholder API key. Get your key from https://aistudio.google.com/app/apikey');
     }
     this.geminiModel = null;
     this.useGemini = !!this.geminiApiKey;
+    this.geminiDisabled = false; // Track if API key is blocked/invalid
     this.geminiEndpointBase = 'https://generativelanguage.googleapis.com/v1/models';
     this.geminiModelCandidates = [
       'gemini-2.5-flash',
@@ -87,8 +89,8 @@ class AIUnderstandingEngine {
       timestamp: Date.now()
     });
 
-    // Try Gemini first if available
-    if (this.useGemini) {
+    // Try Gemini first if available and not disabled
+    if (this.useGemini && !this.geminiDisabled) {
       try {
         const geminiResponse = await this.processWithGemini(userMessage);
         if (geminiResponse) {
@@ -103,7 +105,22 @@ class AIUnderstandingEngine {
           return geminiResponse;
         }
       } catch (error) {
-        console.warn('Gemini processing failed, using fallback:', error);
+        // Check if it's an API key error
+        console.error('🔍 Gemini Error Details:', {
+          message: error.message,
+          stack: error.stack,
+          isApiKeyError: error.message && (error.message.includes('403') || error.message.includes('leaked') || error.message.includes('PERMISSION_DENIED')),
+          isCorsError: error.message && error.message.includes('CORS'),
+          isNetworkError: error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))
+        });
+        
+        if (error.message && (error.message.includes('403') || error.message.includes('leaked') || error.message.includes('PERMISSION_DENIED'))) {
+          this.geminiDisabled = true;
+          console.warn('⚠️ Gemini API Error: ' + error.message);
+          console.warn('💡 If you believe this is incorrect, check: https://aistudio.google.com/app/apikey');
+        } else {
+          console.warn('⚠️ Gemini processing failed, using fallback:', error.message || error);
+        }
       }
     }
 
@@ -134,10 +151,12 @@ Available locations database:
 
 User message: "${userMessage}"
 
-IMPORTANT: 
+CRITICAL INTENT RULES: 
+- If user asks "how to report" or "how do I report" = REPORT_NOISE intent (they want INSTRUCTIONS)
+- If user says "avoid noise" or "no crowds" = AVOID_AREA intent (they want route preference)
+- If user says "quiet route" or "comfortable route" = PREFERENCE + possibly AVOID_AREA
 - If user mentions origin AND destination in ONE message, set action to "CALCULATE_ROUTE"
 - Extract actual location names from the message
-- If user wants to avoid crowds/noise, add to avoidAreas
 
 Analyze and respond with JSON:
 {
@@ -269,7 +288,16 @@ Analyze and respond with JSON:
 
         if (!response.ok) {
           const errorText = await response.text();
-          lastError = new Error(`Gemini v1 error ${response.status}: ${errorText}`);
+          const errorMsg = `Gemini API error ${response.status} for model ${modelName}: ${errorText}`;
+          console.error('❌', errorMsg);
+          lastError = new Error(errorMsg);
+          
+          // If 403 (blocked API key), stop trying other models
+          if (response.status === 403) {
+            this.geminiDisabled = true;
+            console.error('🚫 API Key issue detected. To verify your key is valid, visit: https://aistudio.google.com/app/apikey');
+            throw lastError; // Exit immediately, don't try other models
+          }
           continue;
         }
 
@@ -325,17 +353,49 @@ Analyze and respond with JSON:
    */
   async listGeminiModels() {
     try {
+      console.log('🔍 Testing API key by listing available models...');
       const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(this.geminiApiKey)}`);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to list models:', response.status, errorText);
         return [];
       }
       const data = await response.json();
       const models = data?.models || [];
-      console.log('🔍 Available Gemini models:', models.map(m => m.name));
+      console.log('✅ Available Gemini models:', models.map(m => m.name));
       return models;
     } catch (error) {
       console.warn('⚠️ Failed to list Gemini models', error);
       return [];
+    }
+  }
+
+  /**
+   * Test if the API key is valid by making a simple request
+   */
+  async testApiKey() {
+    try {
+      console.log('🧪 Testing Gemini API key...');
+      const endpoint = `${this.geminiEndpointBase}/gemini-2.0-flash:generateContent?key=${encodeURIComponent(this.geminiApiKey)}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'test' }] }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Key Test Failed:', response.status, errorText);
+        return false;
+      }
+
+      console.log('✅ API Key is VALID and working!');
+      return true;
+    } catch (error) {
+      console.error('❌ API Key Test Error:', error);
+      return false;
     }
   }
 

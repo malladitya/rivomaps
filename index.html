@@ -579,13 +579,13 @@
               </div>
               <button onclick="checkComfort()" class="btn" style="width: 100%; margin-bottom: 12px;">🤖 Check Comfort
                 Level</button>
-              <a href="rivo.html" class="btn btn--primary btn--lg demo-btn">
+              <button onclick="findComfortableRoute()" class="btn btn--primary btn--lg demo-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" stroke-width="2" />
                   <circle cx="12" cy="10" r="3" fill="currentColor" />
                 </svg>
                 Find comfortable route
-              </a>
+              </button>
             </div>
 
             <div class="demo-status">
@@ -1313,6 +1313,37 @@
             console.log(`AI Comfort Level: ${(prediction * 100).toFixed(0)}%`);
           }
         }, 5000);
+
+        // Redirect to rivo.html with origin and destination data
+        function findComfortableRoute() {
+          const origin = document.getElementById('origin').value.trim();
+          const destination = document.getElementById('destination').value.trim();
+          
+          if (!origin && !destination) {
+            alert('Please enter at least origin or destination location');
+            return;
+          }
+          
+          // Store data in localStorage for rivo.html to use
+          if (origin) {
+            localStorage.setItem('rivoOrigin', origin);
+          }
+          if (destination) {
+            localStorage.setItem('rivoDestination', destination);
+          }
+          
+          // Get comfort preferences
+          const preferences = {
+            noise: document.getElementById('pref-noise')?.checked || false,
+            crowds: document.getElementById('pref-crowds')?.checked || false,
+            green: document.getElementById('pref-green')?.checked || false,
+            construction: document.getElementById('pref-const')?.checked || false
+          };
+          localStorage.setItem('rivoPreferences', JSON.stringify(preferences));
+          
+          // Redirect to rivo.html
+          window.location.href = 'rivo.html';
+        }
       </script>
 
       <!-- AI & Navigation Scripts -->

@@ -23,6 +23,9 @@
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Weather Config (gitignored) -->
+    <script src="weather-config.js"></script>
     <!-- Use main site styles -->
     <link rel="stylesheet" href="style.css">
 
@@ -1069,32 +1072,63 @@
 <!-- Weather Demo Tool Script (must be after all DOM and scripts) -->
 <script>
 // ===== WEATHER DEMO TOOL =====
-const OPENWEATHERMAP_API_KEY = process.env.OPENWEATHERMAP_API_KEY || 'YOUR_OPENWEATHERMAP_API_KEY'; // <-- Replace with your API key
+// API key loaded from weather-config.js (gitignored)
+const OPENWEATHERMAP_API_KEY = typeof WEATHER_CONFIG !== 'undefined' ? WEATHER_CONFIG.OPENWEATHERMAP_API_KEY : '';
 function showWeatherDemoBanner() {
+    const banner = document.getElementById('weatherBanner');
+    const text = document.getElementById('weatherText');
+    
+    if (!banner || !text) {
+        console.error('Weather banner elements not found');
+        return;
+    }
+
+    // If no API key, show demo message
+    if (!OPENWEATHERMAP_API_KEY) {
+        banner.style.display = 'block';
+        text.textContent = '⚡ Weather Demo: Simulated thunderstorm alert! Route may be affected by severe weather.';
+        console.log('Weather demo shown (no API key configured)');
+        return;
+    }
+
     // Miami, FL, USA (thunderstorm-prone)
     const lat = 25.7617, lon = -80.1918;
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`;
+    
     fetch(url)
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                if (res.status === 401) {
+                    throw new Error('API key not activated yet. Wait 10-15 minutes and try again.');
+                }
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             const weather = data.weather && data.weather[0];
             const thunderstormCodes = [200,201,202,210,211,212,221,230,231,232];
             const isThunderstorm = weather && thunderstormCodes.includes(weather.id);
-            const banner = document.getElementById('weatherBanner');
-            const text = document.getElementById('weatherText');
+            
             if (isThunderstorm) {
                 banner.style.display = 'block';
                 text.textContent = `⚡ Weather Alert: Thunderstorm/Lightning detected! (${weather.description}, ${data.main.temp}°C)`;
             } else if (weather && weather.description) {
                 banner.style.display = 'block';
-                text.textContent = `Weather: ${weather.description}, ${data.main.temp}°C`;
+                text.textContent = `🌤️ Weather: ${weather.description}, ${data.main.temp}°C (No severe weather)`;
             } else {
                 banner.style.display = 'none';
             }
         })
-        .catch(() => {
-            const banner = document.getElementById('weatherBanner');
-            if (banner) banner.style.display = 'none';
+        .catch((error) => {
+            console.error('Weather API error:', error);
+            // Show helpful message based on error
+            banner.style.display = 'block';
+            if (error.message.includes('not activated')) {
+                text.textContent = '🕐 API Key activating... Please wait 10-15 minutes, then try again. (Showing demo meanwhile)';
+            } else {
+                text.textContent = '⚡ Weather Demo: Simulated thunderstorm alert! (API temporarily unavailable)';
+            }
         });
 }
 function hideWeatherDemoBanner() {
@@ -1137,37 +1171,76 @@ document.addEventListener('DOMContentLoaded', () => {
             const startParam = urlParams.get('start');
             const endParam = urlParams.get('end');
 
-            if (startParam || endParam) {
+            // Check localStorage for data from index.html
+            const storedOrigin = localStorage.getItem('rivoOrigin');
+            const storedDestination = localStorage.getItem('rivoDestination');
+            const storedPreferences = localStorage.getItem('rivoPreferences');
+
+            console.log('Reading from localStorage:', { storedOrigin, storedDestination, storedPreferences });
+
+            // Use localStorage values if URL params aren't present
+            const startLocation = startParam || storedOrigin;
+            const endLocation = endParam || storedDestination;
+
+            console.log('Using locations:', { startLocation, endLocation });
+
+            if (startLocation || endLocation) {
                 const startInput = document.getElementById('startInput');
                 const endInput = document.getElementById('endInput');
 
-                if (startParam && startInput) {
-                    startInput.value = startParam;
+                if (startLocation && startInput) {
+                    startInput.value = startLocation;
+                    console.log('Set start input to:', startLocation);
                     // Trigger geocode for start
-                    const startResult = await fetchGeocode(startParam);
+                    const startResult = await fetchGeocode(startLocation);
                     if (startResult) {
                         startCoords = [parseFloat(startResult.lon), parseFloat(startResult.lat)];
                         if (startMarker) startMarker.setLatLng([startResult.lat, startResult.lon]);
+                        console.log('Geocoded start:', startCoords);
                     }
                 }
 
-                if (endParam && endInput) {
-                    endInput.value = endParam;
+                if (endLocation && endInput) {
+                    endInput.value = endLocation;
+                    console.log('Set end input to:', endLocation);
                     // Trigger geocode for end
-                    const endResult = await fetchGeocode(endParam);
+                    const endResult = await fetchGeocode(endLocation);
                     if (endResult) {
                         endCoords = [parseFloat(endResult.lon), parseFloat(endResult.lat)];
                         if (endMarker) endMarker.setLatLng([endResult.lat, endResult.lon]);
+                        console.log('Geocoded end:', endCoords);
+                    }
+                }
+
+                // Apply stored preferences if available
+                if (storedPreferences) {
+                    try {
+                        const preferences = JSON.parse(storedPreferences);
+                        console.log('Applying preferences:', preferences);
+                        // Apply preferences to sliders if they exist
+                        if (preferences.noise && document.getElementById('noiseSlider')) {
+                            document.getElementById('noiseSlider').value = preferences.noise ? 20 : 80;
+                        }
+                        // Add other preference handling as needed
+                    } catch (e) {
+                        console.error('Error parsing preferences:', e);
                     }
                 }
 
                 // If both are found, calculate route
                 if (startCoords && endCoords) {
+                    console.log('Calculating route...');
                     if (map) {
                         map.fitBounds(L.latLngBounds([startCoords[1], startCoords[0]], [endCoords[1], endCoords[0]]), { padding: [50, 50] });
                     }
                     setTimeout(() => calculateAndDisplayRoute(false), 1000);
                 }
+
+                // Clear localStorage after using the data
+                localStorage.removeItem('rivoOrigin');
+                localStorage.removeItem('rivoDestination');
+                localStorage.removeItem('rivoPreferences');
+                console.log('Cleared localStorage');
             }
         }
 

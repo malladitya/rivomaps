@@ -365,8 +365,12 @@
                 info: 'Comfort rating (0-100%): HIGH (70+) = quiet & peaceful, MEDIUM (40-70) = some noise, LOW (0-40) = busy & crowded. Rivo calculates this based on reports & conditions! 😊'
             },
             'avoid': {
-                keywords: ['avoid', 'skip', 'noise', 'noisy', 'crowd', 'crowded', 'problem', 'issue', 'report', 'construction'],
+                keywords: ['avoid', 'skip', 'construction'],
                 info: 'Report problem areas: 1) NOISE 🔊 - loud areas, 2) CROWDS 👥 - busy spots, 3) CONSTRUCTION 🏗️ - ongoing work. Your reports help all Rivo users! 🚫'
+            },
+            'report': {
+                keywords: ['report', 'how to report', 'report noise', 'report zone', 'report a zone', 'reporting'],
+                info: '📋 How to Report Issues:\n\n1️⃣ Scroll to "Report a Zone" section\n2️⃣ Enter location or use current position\n3️⃣ Select issue type: 🔊 Noise / 👥 Crowd / 🏗️ Construction\n4️⃣ Click "Report Zone"\n5️⃣ Your report helps the community!\n\n💡 Reports stay active for 5 minutes and help other users find better routes.'
             },
             'community': {
                 keywords: ['community', 'report', 'share', 'help', 'others', 'user', 'contribute', 'feedback'],
@@ -397,6 +401,11 @@
         // Intelligent response generator
         getResponse: function(message) {
             const msg = message.toLowerCase().trim();
+
+            // PRIORITY: "How to" questions - instructional queries should be answered first
+            if ((msg.includes('how to') || msg.includes('how do i') || msg.includes('how can i')) && msg.includes('report')) {
+                return '📋 How to Report Issues:\n\n1️⃣ Scroll to "Report a Zone" section\n2️⃣ Enter location or use current position\n3️⃣ Select issue type: 🔊 Noise / 👥 Crowd / 🏗️ Construction\n4️⃣ Click "Report Zone"\n5️⃣ Your report helps the community!\n\n💡 Reports stay active for 5 minutes and help other users find better routes.';
+            }
 
             // Custom answers for specific user questions (with dynamic distance/time if available)
             // 1. Sensory-friendly places nearby (flexible matching, now uses real nearest calm place)
@@ -620,6 +629,15 @@
             const success = await window.initializeGeminiAI(geminiApiKey);
             if (!success) {
                 console.log('⚠️ Gemini failed, using fallback');
+            } else {
+                // Test the API key to verify it's working
+                console.log('🧪 Verifying API key functionality...');
+                if (aiEngine && typeof aiEngine.testApiKey === 'function') {
+                    const isValid = await aiEngine.testApiKey();
+                    if (!isValid) {
+                        console.warn('⚠️ API key test failed. Check console for details.');
+                    }
+                }
             }
         } else {
             console.log('⚠️ No API key found, using fallback AI');
@@ -692,6 +710,17 @@
             try {
                 console.log('🤖 Processing with AI Engine...');
                 aiResponse = await aiEngine.processUserMessage(message);
+                
+                // Check if Gemini was just disabled due to API key error
+                if (aiEngine.geminiDisabled && !window._geminiDisabledWarningShown) {
+                    window._geminiDisabledWarningShown = true;
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'harbor-message assistant';
+                    warningDiv.innerHTML = `<div class="harbor-bubble">⚠️ Gemini API key blocked. Using enhanced pattern matching instead!</div>`;
+                    messagesDiv.appendChild(warningDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+                
                 responseText = aiResponse.message;
                 if (aiResponse.action) {
                     switch(aiResponse.action) {

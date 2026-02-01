@@ -35,6 +35,13 @@ jobs:
           echo "" >> config.js
           echo "window.CONFIG = config;" >> config.js
       
+      - name: Create weather-config.js from secrets
+        run: |
+          echo "// Weather API Configuration - Auto-generated during deployment" > weather-config.js
+          echo "const WEATHER_CONFIG = {" >> weather-config.js
+          echo "    OPENWEATHERMAP_API_KEY: '${{ secrets.OPENWEATHERMAP_API_KEY }}'" >> weather-config.js
+          echo "};" >> weather-config.js
+      
       - name: Verify config.js was created
         run: |
           echo "Config.js contents (first 10 lines):"
