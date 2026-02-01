@@ -1,0 +1,26 @@
+{
+  "name": "rivo-navigation",
+  "version": "1.0.0",
+  "description": "Sensory-friendly navigation app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.22.1",
+    "firebase": "^12.8.0",
+    "mongoose": "^9.1.5"
+  },
+  "keywords": [
+    "navigation",
+    "sensory",
+    "vision-api",
+    "autism"
+  ],
+  "author": "",
+  "license": "ISC"
+}
