@@ -550,6 +550,12 @@ body {
   background: var(--primary-dark);
   transform: translateY(-2px) scale(var(--hover-scale));
   box-shadow: var(--shadow-glow), var(--shadow-xl);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.btn--primary:active {
+  transform: translateY(0) scale(0.98);
+  animation: none;
 }
 
 .btn--ghost {
@@ -566,6 +572,10 @@ body {
   border-color: var(--primary-solid);
   transform: translateY(-1px) scale(var(--hover-scale));
   box-shadow: var(--shadow-lg);
+}
+
+.btn--ghost:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn--outline {
@@ -628,14 +638,33 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  
+  /* Disable all custom animations */
+  .hero-badge,
+  .hero-content h1,
+  .hero-subtitle,
+  .hero-actions,
+  .hero-stats,
+  .stat-item,
+  #azureMap,
+  .feature-card,
+  .problem-card {
+    animation: none !important;
+  }
+  
+  .hero:before,
+  .hero:after {
+    animation: none !important;
+  }
 }
 
-/* Enhanced Hero Section */
+/* Enhanced Hero Section with Animations */
 .hero {
   padding: var(--space-7) 0 var(--space-6);
   background: linear-gradient(135deg, var(--surface-solid) 0%, rgba(14, 165, 162, 0.03) 50%, var(--bg-solid) 100%);
   position: relative;
   overflow: hidden;
+  animation: heroFadeIn 1s ease-out;
 }
 
 .hero:before {
@@ -648,6 +677,26 @@ body {
   background: 
     radial-gradient(circle at 20% 20%, rgba(14, 165, 162, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  animation: gradientShift 15s ease infinite;
+}
+
+.hero:after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent,
+    rgba(14, 165, 162, 0.03),
+    transparent,
+    rgba(59, 130, 246, 0.03),
+    transparent
+  );
+  animation: rotateGradient 20s linear infinite;
   pointer-events: none;
 }
 
@@ -668,6 +717,7 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   position: relative;
+  animation: slideInUp 0.8s ease-out 0.2s backwards;
 }
 
 .hero-subtitle {
@@ -675,12 +725,32 @@ body {
   color: var(--muted);
   margin: 0 0 var(--space-4);
   line-height: 1.6;
+  animation: slideInUp 0.8s ease-out 0.4s backwards;
 }
 
 .hero-actions {
   display: flex;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
+  animation: slideInUp 0.8s ease-out 0.6s backwards;
+}
+  position: relative;
+  animation: slideInUp 0.8s ease-out 0.2s backwards;
+}
+
+.hero-subtitle {
+  font-size: var(--fs-3);
+  color: var(--muted);
+  margin: 0 0 var(--space-4);
+  line-height: 1.6;
+  animation: slideInUp 0.8s ease-out 0.4s backwards;
+}
+
+.hero-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  animation: slideInUp 0.8s ease-out 0.6s backwards;
 }
 
 .legend {
@@ -723,6 +793,7 @@ body {
   overflow: hidden;
   border: 1px solid rgba(14, 165, 162, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  animation: fadeInScale 1s ease-out 0.5s backwards;
 }
 
 #azureMap:hover {
@@ -871,6 +942,26 @@ body {
   max-width: 60ch;
 }
 
+/* Scroll Reveal Animation */
+.reveal {
+  opacity: 1;
+}
+
+.reveal.fade-in {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Problem cards */
 /* Enhanced Problem Cards */
 .problem-grid {
@@ -983,14 +1074,29 @@ body {
   transform: rotate(0deg);
 }
 
+.feature-card:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.6s ease;
+}
+
 .feature-card:hover:before {
   opacity: 1;
   transform: rotate(360deg);
 }
 
+.feature-card:hover:after {
+  left: 100%;
+}
+
 .feature-card:hover {
-  transform: translateY(-6px) scale(1.03);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: var(--shadow-xl), 0 0 20px rgba(14, 165, 162, 0.1);
   border-color: rgba(14, 165, 162, 0.3);
 }
 
@@ -1503,6 +1609,7 @@ body {
 /* Hero enhancements */
 .hero-badge {
   margin-bottom: var(--space-3);
+  animation: slideInUp 0.8s ease-out backwards, floatBadge 3s ease-in-out infinite;
 }
 
 .badge {
@@ -1525,13 +1632,20 @@ body {
   padding: var(--space-4) 0;
   border-top: 1px solid var(--outline);
   border-bottom: 1px solid var(--outline);
+  animation: slideInUp 0.8s ease-out 0.8s backwards;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  animation: scaleIn 0.5s ease-out backwards;
 }
+
+.stat-item:nth-child(1) { animation-delay: 1s; }
+.stat-item:nth-child(2) { animation-delay: 1.1s; }
+.stat-item:nth-child(3) { animation-delay: 1.2s; }
+.stat-item:nth-child(4) { animation-delay: 1.3s; }
 
 .stat-number {
   font-family: var(--font-display);
@@ -2013,7 +2127,8 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 400ms ease;
+  animation: overlayFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .welcome-popup {
@@ -2025,9 +2140,30 @@ body {
   max-width: 520px;
   width: 90%;
   box-shadow: var(--shadow-xl);
-  animation: slideUp 400ms ease;
+  animation: popupSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: center;
   border: 1px solid rgba(226, 232, 240, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popupSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .welcome-close {
@@ -2054,6 +2190,10 @@ body {
   transform: rotate(90deg) scale(1.1);
 }
 
+.welcome-close:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
 .welcome-icon {
   margin: 0 auto var(--space-4);
   width: 88px;
@@ -2073,7 +2213,93 @@ body {
   position: absolute;
   inset: 0;
   background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.2), transparent);
-  animation: rotate 3s linear infinite;
+  animation: rotateSmooth 4s linear infinite;
+}
+
+@keyframes rotateSmooth {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Enhanced Landing Page Animations */
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes floatBadge {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(10px, 10px);
+  }
+}
+
+@keyframes rotateGradient {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: var(--shadow-lg), 0 0 30px rgba(14, 165, 162, 0.4);
+  }
+  50% {
+    box-shadow: var(--shadow-lg), 0 0 40px rgba(14, 165, 162, 0.6);
+  }
 }
 
 @keyframes rotate {

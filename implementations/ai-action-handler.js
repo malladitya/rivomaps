@@ -209,6 +209,11 @@ function handleSetDestination(location) {
 function handleCalculateRoute(data) {
   console.log('Calculating route:', data);
   
+  // Track AI-initiated route calculation
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackFeatureUsed('ai_route_calculation');
+  }
+  
   const { origin, destination } = data;
   // Convert to [lng, lat] arrays if needed
   let originCoords = [origin.lng || origin[0], origin.lat || origin[1]];

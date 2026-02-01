@@ -139,7 +139,7 @@
 
             <div class="divider-modal"><span>OR</span></div>
 
-            <button class="google-btn-modal" onclick="handleGoogleSignInModal()">
+            <button type="button" class="google-btn-modal" onclick="handleGoogleSignInModal()">
               <svg class="google-icon" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -173,7 +173,7 @@
 
             <div class="divider-modal"><span>OR</span></div>
 
-            <button class="google-btn-modal" onclick="handleGoogleSignInModal()">
+            <button type="button" class="google-btn-modal" onclick="handleGoogleSignInModal()">
               <svg class="google-icon" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -726,6 +726,14 @@
               <span id="reportStatusTextIndex"></span>
             </div>
           </div>
+          
+          <!-- Recent Reports Display -->
+          <div class="recent-reports-container" style="margin-top: 30px;">
+            <h3 style="color: #0EA5A2; margin-bottom: 15px; font-size: 1.3rem;">📍 Recent Reports</h3>
+            <div id="recentReportsList" class="recent-reports-list">
+              <p style="color: #999; text-align: center; padding: 20px;">No zones reported yet</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -908,6 +916,11 @@
               });
               localStorage.setItem('userReportedZones', JSON.stringify(savedZones));
               
+              // Track sensory report in analytics
+              if (window.rivoAnalytics) {
+                window.rivoAnalytics.trackSensoryReport(zoneType, name, 'user_reported');
+              }
+              
               // Show success
               const zoneLabels = { noise: 'Noise', crowd: 'Crowded', construction: 'Construction' };
               const zoneLabel = zoneLabels[zoneType] || zoneType;
@@ -919,6 +932,9 @@
               
               console.log(`📍 Zone reported: ${name} at [${lat}, ${lng}]`);
               
+              // Update display
+              displayRecentReports();
+              
             } catch (error) {
               console.error("Error reporting zone:", error);
               showStatus('error', 'Failed to report zone. Please try again.');
@@ -928,17 +944,74 @@
             reportBtn.innerHTML = originalHTML;
           });
           
+          // Display recent reports
+          function displayRecentReports() {
+            const savedZones = JSON.parse(localStorage.getItem('userReportedZones') || '[]');
+            const container = document.getElementById('recentReportsList');
+            
+            if (!container) return;
+            
+            if (savedZones.length === 0) {
+              container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No zones reported yet</p>';
+              return;
+            }
+            
+            const zoneIcons = {
+              noise: '🔊',
+              crowd: '👥',
+              construction: '🚧'
+            };
+            
+            const zoneLabels = {
+              noise: 'Noise Zone',
+              crowd: 'Crowded Area',
+              construction: 'Construction Zone'
+            };
+            
+            // Sort by timestamp (newest first)
+            const sortedZones = [...savedZones].sort((a, b) => b.timestamp - a.timestamp);
+            
+            container.innerHTML = sortedZones.map(zone => {
+              const timeAgo = Math.floor((Date.now() - zone.timestamp) / 60000);
+              const expiresIn = 5 - timeAgo;
+              const icon = zoneIcons[zone.type] || '📍';
+              const label = zoneLabels[zone.type] || zone.type;
+              
+              return `
+                <div class="report-item" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #0EA5A2;">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <span style="font-size: 24px;">${icon}</span>
+                    <div style="flex: 1;">
+                      <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${label}</div>
+                      <div style="font-size: 14px; color: #666;">${zone.name}</div>
+                    </div>
+                    <div style="text-align: right; font-size: 12px; color: #999;">
+                      ${timeAgo === 0 ? 'Just now' : timeAgo + ' min ago'}<br>
+                      <span style="color: ${expiresIn <= 1 ? '#EF4444' : '#22C55E'};">
+                        ${expiresIn > 0 ? 'Expires in ' + expiresIn + ' min' : 'Expired'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+          
           // Clean up expired zones (older than 5 minutes)
           function cleanupExpiredZones() {
             const FIVE_MINUTES = 5 * 60 * 1000;
             const savedZones = JSON.parse(localStorage.getItem('userReportedZones') || '[]');
             const activeZones = savedZones.filter(zone => (Date.now() - zone.timestamp) < FIVE_MINUTES);
             localStorage.setItem('userReportedZones', JSON.stringify(activeZones));
+            displayRecentReports();
           }
           
           // Run cleanup on load and periodically
           cleanupExpiredZones();
           setInterval(cleanupExpiredZones, 60000);
+          
+          // Display reports on page load
+          displayRecentReports();
           
           // Current Location Button
           const currentLocationBtn = document.getElementById('useCurrentLocationBtn');
@@ -1212,10 +1285,15 @@
 
           if (!sessionStorage.getItem('welcomeSeen')) {
             popup.style.display = 'flex';
+            popup.style.opacity = '0';
+            requestAnimationFrame(() => {
+              popup.style.opacity = '1';
+            });
           }
 
           const closePopup = () => {
             popup.style.opacity = '0';
+            popup.querySelector('.welcome-popup').style.transform = 'scale(0.95) translateY(10px)';
             setTimeout(() => {
               popup.style.display = 'none';
               sessionStorage.setItem('welcomeSeen', 'true');
@@ -1534,6 +1612,15 @@
         function recalculateRouteFromLiveLocation(origin, destination) {
           if (typeof window.planComfortableRoute === 'function') {
             console.log('✅ Route recalculated from live location');
+            
+            // Track route recalculation
+            if (window.rivoAnalytics) {
+              window.rivoAnalytics.trackCustomEvent('route_recalculated', {
+                event_category: 'Navigation',
+                trigger: 'live_location'
+              });
+            }
+            
             window.planComfortableRoute(origin, destination, false);
 
             // Update navigation display if available
@@ -1908,6 +1995,12 @@
         }
       </style>
 
+      <!-- Local Storage Manager -->
+      <script src="local-storage.js"></script>
+
+      <!-- Google Analytics -->
+      <script src="analytics-setup.js"></script>
+
       <script type="module">
         // Import Firebase SDK v10
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -1950,16 +2043,22 @@
         onAuthStateChanged(auth, (user) => {
           if (user) {
             updateHeaderAvatar(user);
-            localStorage.setItem('rivoUser', JSON.stringify({
+            
+            // Save to local storage using rivoStorage
+            window.rivoStorage.saveUserData({
               uid: user.uid,
               email: user.email,
-              displayName: user.displayName
-            }));
+              displayName: user.displayName,
+              photoURL: user.photoURL
+            });
+            
             if (document.getElementById('authModal').style.display !== 'none') {
               showUserInfoModal(user);
             }
           } else {
             resetHeaderToLogin();
+            // Clear user data on sign out
+            window.rivoStorage.clearUserData();
           }
         });
 
@@ -1996,6 +2095,12 @@
           setLoadingModal('signin-btn-modal', true);
           try {
             await signInWithEmailAndPassword(auth, email, password);
+            
+            // Track sign-in
+            if (window.rivoAnalytics) {
+              window.rivoAnalytics.trackSignIn('email');
+            }
+            
             showAlertModal('Successfully signed in!', 'success');
             setTimeout(() => {
               window.location.href = 'index.html#home';
@@ -2033,13 +2138,22 @@
         };
 
         window.handleGoogleSignInModal = async function() {
+          console.log('Google Sign In clicked');
           try {
-            await signInWithPopup(auth, googleProvider);
+            const result = await signInWithPopup(auth, googleProvider);
+            console.log('Google Sign In success', result.user);
+            
+            // Track sign-in
+            if (window.rivoAnalytics) {
+              window.rivoAnalytics.trackSignIn('google');
+            }
+            
             showAlertModal('Successfully signed in with Google!', 'success');
             setTimeout(() => {
               window.location.href = 'index.html#home';
             }, 1500);
           } catch (error) {
+            console.error('Google Sign In error', error);
             showAlertModal(getErrorMessage(error), 'error');
           }
         };
@@ -2256,6 +2370,8 @@
               return 'Please enter a valid email address.';
             case 'auth/popup-closed-by-user':
               return 'Sign-in popup was closed. Please try again.';
+            case 'auth/popup-blocked':
+              return 'Popup was blocked setup. Please allow popups for this site.';
             default:
               return error.message || 'An error occurred. Please try again.';
           }

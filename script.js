@@ -172,13 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
 //   });
 // }
 
-// Reveal on scroll (IntersectionObserver)
+// Reveal on scroll (IntersectionObserver) with enhanced animations
 const reveals = document.querySelectorAll('.reveal');
 if ('IntersectionObserver' in window) {
   const observer = new IntersectionObserver(
     (entries) => entries.forEach((entry) => {
       if (entry.isIntersecting) {
-        entry.target.classList.add('revealed');
+        entry.target.classList.add('revealed', 'fade-in');
         observer.unobserve(entry.target);
       }
     }),
@@ -186,7 +186,36 @@ if ('IntersectionObserver' in window) {
   );
   reveals.forEach((el) => observer.observe(el));
 } else {
-  reveals.forEach((el) => el.classList.add('revealed'));
+  reveals.forEach((el) => el.classList.add('revealed', 'fade-in'));
+}
+
+// Scroll-based animations for feature cards and sections
+const animateOnScroll = () => {
+  const cards = document.querySelectorAll('.feature-card, .problem-card, .comparison-card');
+  if ('IntersectionObserver' in window) {
+    const cardObserver = new IntersectionObserver(
+      (entries) => entries.forEach((entry, index) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.style.animation = `fadeInUp 0.6s ease-out forwards`;
+          }, index * 100);
+          cardObserver.unobserve(entry.target);
+        }
+      }),
+      { rootMargin: '0px 0px -15% 0px', threshold: 0.1 }
+    );
+    cards.forEach((card) => {
+      card.style.opacity = '0';
+      cardObserver.observe(card);
+    });
+  }
+};
+
+// Run animation setup after DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', animateOnScroll);
+} else {
+  animateOnScroll();
 }
 
 /* 3D stage interaction: tilt and parallax */
@@ -299,6 +328,11 @@ const comfortAI = {
 
 // Report Noise Zone
 function reportNoiseZone(coords, level, description) {
+  // Track sensory report in analytics
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackSensoryReport('noise', `[${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}]`, level);
+  }
+  
   fetch('http://localhost:3000/api/reports/noise', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -320,6 +354,11 @@ function reportNoiseZone(coords, level, description) {
 
 // Report Crowded Area
 function reportCrowdedArea(coords, density, description) {
+  // Track sensory report in analytics
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackSensoryReport('crowd', `[${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}]`, density);
+  }
+  
   fetch('http://localhost:3000/api/reports/crowd', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -341,6 +380,11 @@ function reportCrowdedArea(coords, density, description) {
 
 // Report Construction Zone
 function reportConstruction(coords, description) {
+  // Track sensory report in analytics
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackSensoryReport('construction', `[${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}]`, 'medium');
+  }
+  
   fetch('http://localhost:3000/api/reports/construction', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -520,6 +564,14 @@ function planComfortableRoute(originCoords, destCoords, enableLiveTracking = fal
     return;
   }
 
+  // Track route search in analytics
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackRouteSearch(
+      `[${originCoords[0].toFixed(4)}, ${originCoords[1].toFixed(4)}]`,
+      `[${destCoords[0].toFixed(4)}, ${destCoords[1].toFixed(4)}]`
+    );
+  }
+
   // Clear existing routes and pins (but preserve report markers)
   const reportMarkers = datasource.getShapes().filter(f => {
     const props = f.getProperties();
@@ -535,6 +587,17 @@ function planComfortableRoute(originCoords, destCoords, enableLiveTracking = fal
 
   // Create comfort-aware route avoiding noisy areas
   const comfortRoute = generateComfortRoute(originCoords, destCoords);
+  
+  // Track route calculation in analytics
+  if (window.rivoAnalytics && comfortRoute) {
+    const routeCoords = comfortRoute.getCoordinates();
+    const distance = calculateTotalDistance(routeCoords);
+    window.rivoAnalytics.trackRouteCalculated({
+      distance: (distance / 1000).toFixed(2), // km
+      duration: Math.ceil(distance / 1000 / 5 * 60), // estimated minutes at 5km/h
+      type: 'comfort'
+    });
+  }
   const routeFeature = new atlas.data.Feature(comfortRoute, { isRoute: true });
 
   datasource.add([origin, destination, routeFeature]);
@@ -560,6 +623,15 @@ function planComfortableRoute(originCoords, destCoords, enableLiveTracking = fal
   }
 
   console.log('🗺️ Route planned from', originCoords, 'to', destCoords);
+}
+
+// Helper function to calculate total distance of a route
+function calculateTotalDistance(coordinates) {
+  let totalDistance = 0;
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    totalDistance += calculateDistance(coordinates[i], coordinates[i + 1]);
+  }
+  return totalDistance;
 }
 
 // Calculate bearing between two coordinates
@@ -1203,6 +1275,12 @@ function stopLiveLocationTracking() {
 // Update user location marker with accuracy indicator
 function updateLiveLocationMarker(coords, accuracy) {
   if (!map || !datasource) return;
+  
+  // Track live location usage (only once per session)
+  if (!window._liveLocationTracked && window.rivoAnalytics) {
+    window.rivoAnalytics.trackFeatureUsed('live_location_tracking');
+    window._liveLocationTracked = true;
+  }
 
   // Remove old user location marker
   const existingFeatures = datasource.getShapes().filter(f => f.getProperties().isUserLocation);
@@ -1238,6 +1316,14 @@ function recalculateRouteFromLiveLocation(currentCoords, destinationCoords) {
   datasource.add(routeFeature);
 
   console.log(`✅ Route recalculated from live location`);
+  
+  // Track route recalculation
+  if (window.rivoAnalytics) {
+    window.rivoAnalytics.trackCustomEvent('route_recalculated', {
+      event_category: 'Navigation',
+      trigger: 'live_location'
+    });
+  }
   
   // Setup turn-by-turn navigation
   setupTurnByTurnNavigation(routeCoordinates);
@@ -1483,6 +1569,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Send via EmailJS (sendForm automatically captures input values by name attribute)
       emailjs.sendForm(serviceID, templateID, this)
         .then(() => {
+          // Track contact form submission
+          if (window.rivoAnalytics) {
+            window.rivoAnalytics.trackCustomEvent('contact_form_submitted', {
+              event_category: 'Engagement'
+            });
+          }
           alert('Message sent successfully!');
           this.reset();
         }, (err) => {
