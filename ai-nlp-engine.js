@@ -18,15 +18,14 @@ class AIUnderstandingEngine {
       avoidAreas: []
     };
     
-    // Get API key from various sources (constructor, window.CONFIG, or hardcoded fallback)
-    // The hardcoded fallback ensures it works even if config.js hasn't loaded yet
-    const FALLBACK_API_KEY = 'AIzaSyBcbiTgD3ysvYmi6GaKdXMrC-odpgIfSI4';
-    this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || FALLBACK_API_KEY;
+    // Get API key from window.CONFIG (set by config.js which uses GitHub secrets in production)
+    // No hardcoded keys - use GitHub secrets for deployment
+    this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || '';
     console.log('🔑 API Key configured:', this.geminiApiKey ? this.geminiApiKey.substring(0, 20) + '...' : 'None');
     
-    if (this.geminiApiKey === 'YOUR_GEMINI_API_KEY' || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-      console.warn('⚠️ WARNING: Using placeholder API key. Get your key from https://aistudio.google.com/app/apikey');
-      console.warn('💡 Current key:', this.geminiApiKey);
+    if (!this.geminiApiKey || this.geminiApiKey === 'YOUR_GEMINI_API_KEY' || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+      console.warn('⚠️ WARNING: No API key configured. Set GEMINI_API_KEY in GitHub Secrets or config.js');
+      console.warn('💡 Get your key from https://aistudio.google.com/app/apikey');
     } else if (this.geminiApiKey && this.geminiApiKey.length > 20) {
       console.log('✅ Gemini API key appears valid (length: ' + this.geminiApiKey.length + ')');
       // Test the API key
