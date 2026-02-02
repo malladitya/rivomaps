@@ -18,29 +18,45 @@ class AIUnderstandingEngine {
       avoidAreas: []
     };
     
-    // IMPORTANT: Replace with your actual Gemini API key from https://aistudio.google.com/app/apikey
-    this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+    // Get API key from various sources (constructor, window.CONFIG, or hardcoded fallback)
+    // The hardcoded fallback ensures it works even if config.js hasn't loaded yet
+    const FALLBACK_API_KEY = 'AIzaSyBcbiTgD3ysvYmi6GaKdXMrC-odpgIfSI4';
+    this.geminiApiKey = geminiApiKey || window.CONFIG?.geminiApiKey || FALLBACK_API_KEY;
     console.log('🔑 API Key configured:', this.geminiApiKey ? this.geminiApiKey.substring(0, 20) + '...' : 'None');
     
-    if (this.geminiApiKey === 'YOUR_GEMINI_API_KEY') {
+    if (this.geminiApiKey === 'YOUR_GEMINI_API_KEY' || this.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
       console.warn('⚠️ WARNING: Using placeholder API key. Get your key from https://aistudio.google.com/app/apikey');
+      console.warn('💡 Current key:', this.geminiApiKey);
+    } else if (this.geminiApiKey && this.geminiApiKey.length > 20) {
+      console.log('✅ Gemini API key appears valid (length: ' + this.geminiApiKey.length + ')');
+      // Test the API key
+      this.testApiKey().then(isValid => {
+        if (isValid) {
+          console.log('🎉 Gemini API key validated successfully!');
+        } else {
+          console.error('❌ Gemini API key validation failed!');
+        }
+      });
     }
     this.geminiModel = null;
     this.useGemini = !!this.geminiApiKey;
     this.geminiDisabled = false; // Track if API key is blocked/invalid
+    this.geminiRateLimited = false; // Track rate limiting
+    this.geminiRetryAfter = 0; // When to retry after rate limit
     this.geminiEndpointBase = 'https://generativelanguage.googleapis.com/v1/models';
+    // Available models (Feb 2026): gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro, 
+    // gemini-2.0-flash, gemini-2.0-flash-001, gemini-2.0-flash-lite, gemini-2.0-flash-lite-001
     this.geminiModelCandidates = [
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-001',
-      'gemini-2.0-flash-lite',
-      'gemini-2.0-flash-lite-001',
-      'gemini-2.5-pro'
+      'gemini-2.5-flash-lite',      // Newest lite - best free tier
+      'gemini-2.0-flash-lite',      // Older lite version
+      'gemini-2.0-flash-lite-001',  // Specific version
+      'gemini-2.5-flash',           // Full 2.5 flash
+      'gemini-2.0-flash',           // General flash
+      'gemini-2.0-flash-001'        // Specific version
     ];
     
     if (this.useGemini) {
-      console.log('✅ Gemini AI activated - Enhanced intelligence enabled (v1 REST)');
+      console.log('✅ Gemini AI activated - Using flash models for better quota');
     }
     
     // Confidence thresholds
@@ -51,14 +67,15 @@ class AIUnderstandingEngine {
       SET_LOCATION: { patterns: ['my location', 'im at', 'current location', 'where i am', 'at', 'position'], priority: 10 },
       SET_DESTINATION: { patterns: ['go to', 'navigate to', 'take me to', 'directions to', 'route to', 'heading to'], priority: 9 },
       GET_ROUTE: { patterns: ['route', 'directions', 'how do i get', 'way to', 'path to', 'show route'], priority: 8 },
-      GET_COMFORT: { patterns: ['comfort level', 'sensory', 'how comfortable', 'stress level', 'noise', 'crowd'], priority: 7 },
+      GET_COMFORT: { patterns: ['comfort level', 'sensory level', 'how comfortable', 'stress level', 'check comfort'], priority: 7 },
       CHECK_TIME: { patterns: ['how long', 'time', 'duration', 'arrive', 'eta'], priority: 6 },
-      REPORT_NOISE: { patterns: ['report noise', 'report a noise', 'how to report', 'report a zone', 'report zone', 'noise report', 'how do i report'], priority: 8 },
+      REPORT_NOISE: { patterns: ['report noise', 'report a noise', 'how to report', 'report a zone', 'report zone', 'noise report', 'how do i report', 'how can i report', 'report loud', 'report construction', 'report crowd', 'how report', 'where report', 'can i report', 'want to report', 'need to report', 'reporting zones', 'report problem', 'submit report', 'guide me report', 'guide report', 'plse guide', 'please guide', 'pls guide', 'noise zone', 'noise zones', 'report issue', 'report issues'], priority: 10 },
+      GOTO_REPORT: { patterns: ['take me to report', 'go to report', 'show report section', 'scroll to report', 'report section', 'take me there', 'go there'], priority: 9 },
       VISION_BENEFITS: { patterns: ['vision', 'benefits', 'why rivo', 'why use rivo', 'what are benefits', 'mission', 'purpose', 'advantage'], priority: 7 },
-      HELP: { patterns: ['help', 'what can you do', 'commands', 'guide', 'how to'], priority: 5 },
+      HELP: { patterns: ['help', 'what can you do', 'commands', 'how to use'], priority: 5 },
       START_NAV: { patterns: ['start', 'begin', 'navigate', 'let\'s go', 'start navigation'], priority: 8 },
-      AVOID_AREA: { patterns: ['avoid', 'skip', 'don\'t go', 'no', 'stay away'], priority: 7 },
-      PREFERENCE: { patterns: ['prefer', 'comfortable', 'fast', 'quiet', 'peaceful'], priority: 6 },
+      AVOID_AREA: { patterns: ['avoid', 'skip', 'don\'t go', 'stay away'], priority: 7 },
+      PREFERENCE: { patterns: ['prefer', 'comfortable route', 'fast route', 'quiet route', 'peaceful route'], priority: 6 },
       GREET: { patterns: ['hello', 'hi', 'hey', 'greetings'], priority: 1 }
     };
 
@@ -78,6 +95,57 @@ class AIUnderstandingEngine {
   }
 
   /**
+   * Check if message is asking about how to report zones
+   */
+  isReportQuestion(message) {
+    const reportKeywords = [
+      'report noise', 'report zone', 'report a zone', 'noise zone', 'noise zones',
+      'how to report', 'how do i report', 'how can i report', 'how report',
+      'report construction', 'report crowd', 'report issue', 'submit report',
+      'reporting', 'where to report', 'where report'
+    ];
+    
+    return reportKeywords.some(keyword => message.includes(keyword));
+  }
+
+  /**
+   * Get the standard report zone response
+   */
+  getReportResponse() {
+    const message = `📍 **How to Report a Zone** - Step by Step:
+
+🎯 **Quick Steps:**
+1️⃣ **Scroll down** to the "Report a Zone" section on this page
+2️⃣ **Enter location** - Type a place name OR click 📍 for your current location
+3️⃣ **Select type** from the dropdown:
+   • 🔊 **Noise Zone** - construction, traffic, loud events
+   • 👥 **Crowd Zone** - busy areas, gatherings
+   • 🚧 **Construction** - roadwork, building sites
+4️⃣ **Click "Report Zone"** button to submit
+
+💡 **Good to know:**
+• Your report stays active for 5 minutes
+• Other users will be routed away from reported areas
+• You're helping make navigation better for everyone!
+
+Say "**take me to report section**" and I'll scroll you there! 🎯`;
+
+    return {
+      message: message,
+      action: 'SHOW_REPORT_GUIDE',
+      data: { 
+        scrollToSection: 'report-zone',
+        highlightType: 'noise',
+        canInteract: true
+      },
+      intent: 'REPORT_NOISE',
+      confidence: 1.0,
+      preferences: this.userPreferences,
+      conversationContext: this.getConversationContext()
+    };
+  }
+
+  /**
    * Main entry point: Process user message and return AI response
    * Enhanced with Gemini intelligence
    */
@@ -88,6 +156,25 @@ class AIUnderstandingEngine {
       content: userMessage,
       timestamp: Date.now()
     });
+
+    const lowerMessage = userMessage.toLowerCase();
+    
+    // PRIORITY CHECK: Detect report-related questions immediately
+    // This ensures "how can i report noise zones" is handled correctly
+    if (this.isReportQuestion(lowerMessage)) {
+      console.log('🎯 Direct report question detected!');
+      return this.getReportResponse();
+    }
+
+    // Check if we're rate limited and should wait
+    if (this.geminiRateLimited && Date.now() < this.geminiRetryAfter) {
+      console.log('⏳ Gemini rate limited, using pattern matching...');
+      return await this.processWithPatternMatching(userMessage);
+    } else if (this.geminiRateLimited) {
+      // Reset rate limit flag after wait period
+      this.geminiRateLimited = false;
+      console.log('✅ Rate limit period ended, retrying Gemini...');
+    }
 
     // Try Gemini first if available and not disabled
     if (this.useGemini && !this.geminiDisabled) {
@@ -105,6 +192,15 @@ class AIUnderstandingEngine {
           return geminiResponse;
         }
       } catch (error) {
+        // Check if it's a rate limit error (429)
+        if (error.message && error.message.includes('429')) {
+          this.geminiRateLimited = true;
+          // Wait 60 seconds before retrying
+          this.geminiRetryAfter = Date.now() + 60000;
+          console.warn('⚠️ Gemini rate limited (429). Will retry in 60 seconds. Using pattern matching...');
+          return await this.processWithPatternMatching(userMessage);
+        }
+        
         // Check if it's an API key error
         console.error('🔍 Gemini Error Details:', {
           message: error.message,
@@ -132,6 +228,11 @@ class AIUnderstandingEngine {
    * Process message using Google Gemini AI
    */
   async processWithGemini(userMessage) {
+    // Get last few messages for context
+    const recentHistory = this.conversationHistory.slice(-4).map(m => 
+      `${m.role}: ${m.content}`
+    ).join('\n');
+    
     const context = `You are Harbor, an AI assistant for Rivo Navigation, a sensory-friendly navigation app.
 Users have autism or sensory sensitivities and need quiet, comfortable routes.
 
@@ -140,6 +241,9 @@ Current user context:
 - Destination: ${this.userPreferences.destination ? JSON.stringify(this.userPreferences.destination) : 'Not set'}
 - Preference: ${this.userPreferences.preferenceType}
 - Avoid areas: ${this.userPreferences.avoidAreas.map(a => a.name).join(', ') || 'None'}
+
+Recent conversation:
+${recentHistory || 'No previous messages'}
 
 Available locations database:
 - Delhi (28.6139, 77.2090)
@@ -152,11 +256,22 @@ Available locations database:
 User message: "${userMessage}"
 
 CRITICAL INTENT RULES: 
-- If user asks "how to report" or "how do I report" = REPORT_NOISE intent (they want INSTRUCTIONS)
-- If user says "avoid noise" or "no crowds" = AVOID_AREA intent (they want route preference)
-- If user says "quiet route" or "comfortable route" = PREFERENCE + possibly AVOID_AREA
-- If user mentions origin AND destination in ONE message, set action to "CALCULATE_ROUTE"
-- Extract actual location names from the message
+- If user asks about "report", "noise zone", "noise zones", "how to report", "how can i report" = REPORT_NOISE intent
+- ANY question containing "report" + "noise/zone/crowd/construction" = REPORT_NOISE intent
+- If user says "please guide" or "plse guide" after asking about reporting = REPORT_NOISE intent (follow-up)
+- If user says "avoid noise" or "no crowds" = AVOID_AREA intent (route preference)
+- If user says "quiet route" or "comfortable route" = PREFERENCE intent
+- If user mentions origin AND destination in ONE message = action "CALCULATE_ROUTE"
+- NEVER return GET_COMFORT when user asks about reporting!
+- ALWAYS return REPORT_NOISE for any question about how to report zones
+
+For REPORT_NOISE intent, provide this detailed message:
+"📍 How to Report a Zone:
+1️⃣ Scroll to 'Report a Zone' section
+2️⃣ Enter location or click 📍 for current position  
+3️⃣ Select type: 🔊 Noise / 👥 Crowd / 🚧 Construction
+4️⃣ Click 'Report Zone' button
+Your report helps others find quieter routes! 🎯"
 
 Analyze and respond with JSON:
 {
@@ -166,8 +281,8 @@ Analyze and respond with JSON:
   "preferences": ["comfort", "speed", "quiet"],
   "avoidAreas": ["crowds", "noise", "construction"],
   "confidence": 0.0-1.0,
-  "action": "CALCULATE_ROUTE|SET_ORIGIN|SET_DESTINATION|START_NAVIGATION|SHOW_HELP|ADD_AVOID_AREA|null",
-  "message": "Brief confirmation that you're setting up the route (1 sentence, use emoji)"
+  "action": "CALCULATE_ROUTE|SET_ORIGIN|SET_DESTINATION|START_NAVIGATION|SHOW_REPORT_GUIDE|SCROLL_TO_REPORT|SHOW_HELP|ADD_AVOID_AREA|null",
+  "message": "Your helpful response with detailed instructions if asked (use emojis, be specific)"
 }`;
 
     try {
@@ -253,7 +368,7 @@ Analyze and respond with JSON:
       return null;
     } catch (error) {
       console.error('Gemini processing error:', error);
-      return null;
+      throw error; // Re-throw to let caller handle rate limits
     }
   }
 
@@ -266,11 +381,13 @@ Analyze and respond with JSON:
     }
 
     let lastError = null;
+    let rateLimitedModels = [];
 
     // First try known candidates
     for (const modelName of this.geminiModelCandidates) {
       const endpoint = `${this.geminiEndpointBase}/${modelName}:generateContent?key=${encodeURIComponent(this.geminiApiKey)}`;
       try {
+        console.log(`🔄 Trying Gemini model: ${modelName}`);
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -289,15 +406,24 @@ Analyze and respond with JSON:
         if (!response.ok) {
           const errorText = await response.text();
           const errorMsg = `Gemini API error ${response.status} for model ${modelName}: ${errorText}`;
-          console.error('❌', errorMsg);
-          lastError = new Error(errorMsg);
+          
+          // If 429 (rate limited), try next model
+          if (response.status === 429) {
+            console.warn(`⚠️ Rate limited on ${modelName}, trying next model...`);
+            rateLimitedModels.push(modelName);
+            lastError = new Error(errorMsg);
+            continue; // Try next model
+          }
           
           // If 403 (blocked API key), stop trying other models
           if (response.status === 403) {
             this.geminiDisabled = true;
             console.error('🚫 API Key issue detected. To verify your key is valid, visit: https://aistudio.google.com/app/apikey');
-            throw lastError; // Exit immediately, don't try other models
+            throw new Error(errorMsg);
           }
+          
+          console.error('❌', errorMsg);
+          lastError = new Error(errorMsg);
           continue;
         }
 
@@ -314,11 +440,21 @@ Analyze and respond with JSON:
       }
     }
 
+    // If all models are rate limited, throw a clear error
+    if (rateLimitedModels.length === this.geminiModelCandidates.length) {
+      console.warn('⚠️ All Gemini models are rate limited. Using pattern matching fallback.');
+      throw new Error('429: All models rate limited');
+    }
+
     // If all candidates fail, discover available models and retry
     const discovered = await this.listGeminiModels();
-    const firstUsable = discovered.find(model => model.supportedGenerationMethods?.includes('generateContent'));
+    const firstUsable = discovered.find(model => 
+      model.supportedGenerationMethods?.includes('generateContent') &&
+      !rateLimitedModels.includes(model.name.replace('models/', ''))
+    );
     if (firstUsable?.name) {
       const modelName = firstUsable.name.replace('models/', '');
+      console.log(`🔄 Trying discovered model: ${modelName}`);
       const endpoint = `${this.geminiEndpointBase}/${modelName}:generateContent?key=${encodeURIComponent(this.geminiApiKey)}`;
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -342,6 +478,9 @@ Analyze and respond with JSON:
           console.log(`✅ Using discovered Gemini model: ${modelName}`);
           return text;
         }
+      } else if (response.status === 429) {
+        console.warn(`⚠️ Discovered model ${modelName} also rate limited`);
+        throw new Error('429: All models rate limited');
       }
     }
 
@@ -424,6 +563,17 @@ Analyze and respond with JSON:
     // Clean input
     const cleanMessage = userMessage.toLowerCase().trim();
 
+    // Step 0: Check if this is a follow-up question (short message after specific topic)
+    const lastUserMessage = this.getLastUserIntent();
+    if (this.isFollowUpQuestion(cleanMessage, lastUserMessage)) {
+      console.log('🔄 Detected follow-up question, using context from:', lastUserMessage);
+      // Return the same intent as before with more detailed response
+      const followUpResponse = this.handleFollowUp(cleanMessage, lastUserMessage);
+      if (followUpResponse) {
+        return followUpResponse;
+      }
+    }
+
     // Step 1: Detect Intent
     const intent = this.detectIntent(cleanMessage);
 
@@ -446,6 +596,82 @@ Analyze and respond with JSON:
     });
 
     return response;
+  }
+
+  /**
+   * Get last user's detected intent from conversation history
+   */
+  getLastUserIntent() {
+    for (let i = this.conversationHistory.length - 1; i >= 0; i--) {
+      if (this.conversationHistory[i].intent) {
+        return {
+          intent: this.conversationHistory[i].intent,
+          message: this.conversationHistory[i].content
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if message is a follow-up question
+   */
+  isFollowUpQuestion(message, lastIntent) {
+    if (!lastIntent) return false;
+    
+    const followUpPhrases = ['guide', 'guide me', 'please guide', 'plse guide', 'pls guide', 
+                             'tell me more', 'more info', 'explain', 'how', 'show me',
+                             'help me', 'yes', 'ok', 'okay', 'continue', 'go on'];
+    
+    const isShortMessage = message.split(' ').length <= 4;
+    const containsFollowUp = followUpPhrases.some(phrase => message.includes(phrase));
+    
+    return isShortMessage && containsFollowUp;
+  }
+
+  /**
+   * Handle follow-up questions by using context
+   */
+  handleFollowUp(message, lastIntent) {
+    console.log('🔄 Handling follow-up for intent:', lastIntent.intent);
+    
+    if (lastIntent.intent === 'REPORT_NOISE' || lastIntent.message?.toLowerCase().includes('report')) {
+      return {
+        message: `📍 **How to Report a Zone** - Step by Step:
+
+🎯 **Quick Method:**
+• Scroll down to the "Report a Zone" section
+• I can take you there automatically!
+
+📋 **Detailed Steps:**
+1️⃣ **Location**: Enter place name OR click 📍 for current location
+2️⃣ **Type**: Choose from dropdown:
+   • 🔊 Noise Zone (construction, traffic, loud music)
+   • 👥 Crowd Zone (busy events, gatherings) 
+   • 🚧 Construction (roadwork, building)
+3️⃣ **Submit**: Click "Report Zone" button
+4️⃣ **Help Others**: Your report stays active for 5 minutes
+
+💡 **Pro Tips:**
+• Be specific: "Main Street near coffee shop"
+• Reports help our AI avoid these areas for future routes
+• Community reports make Rivo smarter for everyone!
+
+Say "take me to report section" and I'll scroll you there! 🎯`,
+        action: 'SHOW_REPORT_GUIDE',
+        data: { 
+          scrollToSection: 'report-zone',
+          highlightType: 'noise',
+          canInteract: true
+        },
+        intent: 'REPORT_NOISE',
+        confidence: 0.95,
+        preferences: this.userPreferences,
+        conversationContext: this.getConversationContext()
+      };
+    }
+    
+    return null; // Let normal processing handle it
   }
 
   /**
@@ -711,26 +937,61 @@ Analyze and respond with JSON:
 • "Show me route" - Get directions
 • "Comfort level" - Check sensory comfort
 • "Avoid [area]" - Skip certain areas
-• "Report noise" - Learn how to report noisy zones
+• "How to report" or "Report noise" - Learn zone reporting 🎯
+• "Take me to report section" - Go directly to report form
 • "Vision and benefits" - Learn about Rivo's mission
-• "Start navigation" - Begin guided tour`;
+• "Start navigation" - Begin guided tour
+
+🤖 **Pro tip**: Ask me "how to report a zone" for detailed instructions!`;
         action = 'SHOW_HELP';
         break;
 
       case 'REPORT_NOISE':
-        message = `📋 Here's how to report a noise zone:
+        message = `� **How to Report a Zone** - Step by Step:
 
-1️⃣ Scroll down to "Report a Zone" section
-2️⃣ Enter the location name OR click the location button for current position
-3️⃣ Select 🔊 "Noise Zone" from the dropdown menu
-4️⃣ Click the "Report Zone" button
-5️⃣ Your report helps other users avoid noisy areas!
+🎯 **Quick Method:**
+• Scroll down to the "Report a Zone" section
+• I can take you there automatically!
 
-💡 Tips:
-• Reports stay active for 5 minutes for verification
-• Community reports make Rivo better for everyone
-• You can report multiple zones if needed`;
+📋 **Detailed Steps:**
+1️⃣ **Location**: Enter place name OR click 📍 for current location
+2️⃣ **Type**: Choose from dropdown:
+   • 🔊 Noise Zone (construction, traffic, loud music)
+   • 👥 Crowd Zone (busy events, gatherings) 
+   • 🚧 Construction (roadwork, building)
+3️⃣ **Submit**: Click "Report Zone" button
+4️⃣ **Help Others**: Your report stays active for 5 minutes
+
+💡 **Pro Tips:**
+• Be specific: "Main Street near coffee shop"
+• Reports help our AI avoid these areas for future routes
+• Community reports make Rivo smarter for everyone!
+• You can report multiple zones if needed
+
+Ready to report? Say "take me to report section" and I'll scroll you there! 🎯`;
         action = 'SHOW_REPORT_GUIDE';
+        data = { 
+          scrollToSection: 'report-zone',
+          highlightType: 'noise',
+          canInteract: true
+        };
+        break;
+
+      case 'GOTO_REPORT':
+        message = `🎯 Taking you to the Report Zone section! 
+
+The form is being highlighted for you. You can:
+• Enter a location name or click 📍 for current position
+• Select the zone type (noise, crowd, construction)
+• Submit your report to help the community
+
+Your report will be active for 5 minutes and help others find quieter routes! 🌟`;
+        action = 'SCROLL_TO_REPORT';
+        data = { 
+          scrollToSection: 'report-zone',
+          highlightForm: true,
+          autoFocus: true
+        };
         break;
 
       case 'VISION_BENEFITS':

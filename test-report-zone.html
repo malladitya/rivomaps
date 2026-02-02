@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Zone AI Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #007cba;
+        }
+        .test-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #005a87;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 6px;
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            white-space: pre-wrap;
+        }
+        #report-zone {
+            margin: 30px 0;
+            padding: 20px;
+            background: #e8f5e8;
+            border-radius: 10px;
+            border: 2px dashed #28a745;
+        }
+        .report-form input, .report-form select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+        }
+        .report-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Report Zone AI Test</h1>
+        
+        <div class="test-section">
+            <h3>🧪 Test AI Report Zone Responses</h3>
+            <button onclick="testReportQuestion()" class="test-button">Test "How to report?"</button>
+            <button onclick="testTakeToReport()" class="test-button">Test "Take me to report section"</button>
+            <button onclick="testVariations()" class="test-button">Test Various Phrasings</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <!-- Mock Report Zone Section -->
+        <div id="report-zone">
+            <h3>📍 Report a Zone (Mock Section)</h3>
+            <p>This is a test section to verify the AI can scroll and highlight properly.</p>
+            <div class="report-form">
+                <input type="text" id="reportPlaceInputIndex" placeholder="Enter location name">
+                <select id="reportZoneTypeIndex">
+                    <option value="">Select zone type</option>
+                    <option value="noise">🔊 Noise Zone</option>
+                    <option value="crowd">👥 Crowd Zone</option>
+                    <option value="construction">🚧 Construction</option>
+                </select>
+                <button class="report-btn">Report Zone</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load necessary scripts -->
+    <script src="config.js"></script>
+    <script src="gemini-helper.js"></script>
+    <script src="ai-nlp-engine.js"></script>
+    <script src="ai-action-handler.js"></script>
+
+    <script>
+        function addResult(message) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result';
+            resultDiv.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        async function testReportQuestion() {
+            try {
+                addResult('Testing: "how to report a zone"');
+                const engine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                const response = await engine.processUserMessage('how to report a zone');
+                
+                addResult('Intent: ' + response.intent);
+                addResult('Action: ' + response.action);
+                addResult('Response: ' + response.message.substring(0, 200) + '...');
+                
+                // Execute the action if handler available
+                if (window.handleAIAction && response.action) {
+                    window.handleAIAction(response);
+                    addResult('✅ Action executed successfully!');
+                }
+                
+            } catch (error) {
+                addResult('❌ Error: ' + error.message);
+            }
+        }
+
+        async function testTakeToReport() {
+            try {
+                addResult('Testing: "take me to report section"');
+                const engine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                const response = await engine.processUserMessage('take me to report section');
+                
+                addResult('Intent: ' + response.intent);
+                addResult('Action: ' + response.action);
+                addResult('Response: ' + response.message.substring(0, 200) + '...');
+                
+                // Execute the action if handler available
+                if (window.handleAIAction && response.action) {
+                    window.handleAIAction(response);
+                    addResult('✅ Action executed - should scroll to report section!');
+                }
+                
+            } catch (error) {
+                addResult('❌ Error: ' + error.message);
+            }
+        }
+
+        async function testVariations() {
+            const testPhrases = [
+                'how do i report noise',
+                'where can i report',
+                'want to report construction',
+                'need to report a problem',
+                'how to submit report'
+            ];
+
+            addResult('Testing various report-related phrases...');
+            
+            try {
+                const engine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                
+                for (const phrase of testPhrases) {
+                    addResult(`\n--- Testing: "${phrase}" ---`);
+                    const response = await engine.processUserMessage(phrase);
+                    addResult(`Intent: ${response.intent} (${response.confidence})`);
+                    
+                    // Small delay between tests
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                addResult('✅ All variations tested!');
+                
+            } catch (error) {
+                addResult('❌ Error: ' + error.message);
+            }
+        }
+
+        // Mock notification function
+        window.showNotification = function(message, type) {
+            addResult(`📢 Notification (${type}): ${message}`);
+        };
+
+        // Show initial status
+        window.addEventListener('load', function() {
+            addResult('Report Zone AI Test loaded!');
+            
+            // Test if all components are available
+            addResult('AI Engine: ' + (typeof AIUnderstandingEngine !== 'undefined' ? 'Available' : 'Missing'));
+            addResult('Action Handler: ' + (typeof window.handleAIAction !== 'undefined' ? 'Available' : 'Missing'));
+            addResult('Gemini Helper: ' + (typeof window.setGeminiApiKey !== 'undefined' ? 'Available' : 'Missing'));
+            
+            const currentKey = window.CONFIG?.geminiApiKey;
+            if (currentKey && currentKey !== 'YOUR_GEMINI_API_KEY') {
+                addResult('✅ API key configured: ' + currentKey.substring(0, 20) + '...');
+            } else {
+                addResult('⚠️ No valid API key found');
+            }
+        });
+    </script>
+</body>
+</html>

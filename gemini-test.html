@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #007cba;
+        }
+        .test-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #005a87;
+        }
+        .api-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Gemini API Test Console</h1>
+        
+        <div class="test-section">
+            <h3>🔑 API Key Setup</h3>
+            <p>Enter your Gemini API key to test the connection:</p>
+            <input type="password" id="apiKeyInput" class="api-input" placeholder="AIzaSy...">
+            <button onclick="setApiKey()" class="test-button">Set API Key</button>
+            <button onclick="showCurrentKey()" class="test-button">Show Current Key</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 API Key Tests</h3>
+            <button onclick="testApiKeyValidity()" class="test-button">Test API Key</button>
+            <button onclick="listModels()" class="test-button">List Models</button>
+            <button onclick="testGeneration()" class="test-button">Test Generation</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎯 Rivo AI Engine Test</h3>
+            <button onclick="testAIEngine()" class="test-button">Test AI Engine</button>
+            <button onclick="testChatMessage()" class="test-button">Test Chat</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <!-- Load configuration -->
+    <script src="config.js"></script>
+    <script src="gemini-helper.js"></script>
+    <script src="ai-nlp-engine.js"></script>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function setApiKey() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                addResult('Please enter an API key', 'error');
+                return;
+            }
+            
+            if (window.setGeminiApiKey) {
+                const success = window.setGeminiApiKey(apiKey);
+                if (success) {
+                    addResult('API key set successfully!', 'success');
+                } else {
+                    addResult('Failed to set API key', 'error');
+                }
+            } else {
+                addResult('Gemini helper not loaded', 'error');
+            }
+        }
+
+        function showCurrentKey() {
+            const currentKey = window.CONFIG?.geminiApiKey || localStorage.getItem('geminiApiKey') || 'Not set';
+            addResult('Current API key: ' + (currentKey.length > 20 ? currentKey.substring(0, 20) + '...' : currentKey), 'info');
+        }
+
+        function testApiKeyValidity() {
+            if (window.testGeminiApiKeyDirect) {
+                addResult('Testing API key validity...', 'info');
+                window.testGeminiApiKeyDirect()
+                    .then(isValid => {
+                        addResult('API key test result: ' + (isValid ? 'VALID' : 'INVALID'), isValid ? 'success' : 'error');
+                    })
+                    .catch(error => {
+                        addResult('API key test error: ' + error.message, 'error');
+                    });
+            } else {
+                addResult('Test function not available', 'error');
+            }
+        }
+
+        async function listModels() {
+            const apiKey = window.CONFIG?.geminiApiKey || localStorage.getItem('geminiApiKey');
+            if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') {
+                addResult('No valid API key available', 'error');
+                return;
+            }
+
+            try {
+                addResult('Fetching available models...', 'info');
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const models = data?.models || [];
+                    const modelList = models.map(m => m.name.replace('models/', '')).join(', ');
+                    addResult(`Found ${models.length} models: ${modelList}`, 'success');
+                } else {
+                    const error = await response.text();
+                    addResult(`Failed to list models: ${response.status} ${error}`, 'error');
+                }
+            } catch (error) {
+                addResult('List models error: ' + error.message, 'error');
+            }
+        }
+
+        async function testGeneration() {
+            const apiKey = window.CONFIG?.geminiApiKey || localStorage.getItem('geminiApiKey');
+            if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') {
+                addResult('No valid API key available', 'error');
+                return;
+            }
+
+            try {
+                addResult('Testing text generation...', 'info');
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            role: 'user',
+                            parts: [{ text: 'Say "Hello from Gemini! I am working correctly for Rivo Navigation." if you are working.' }]
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No text generated';
+                    addResult('Generation successful! Response: ' + generatedText, 'success');
+                } else {
+                    const error = await response.text();
+                    addResult(`Generation failed: ${response.status} ${error}`, 'error');
+                }
+            } catch (error) {
+                addResult('Generation error: ' + error.message, 'error');
+            }
+        }
+
+        async function testAIEngine() {
+            try {
+                addResult('Initializing AI Engine...', 'info');
+                const engine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                addResult('AI Engine initialized successfully!', 'success');
+                
+                // Test with a simple message
+                addResult('Testing AI Engine with hello message...', 'info');
+                const response = await engine.processUserMessage('hello');
+                addResult('AI Engine response: ' + JSON.stringify(response, null, 2), 'success');
+                
+            } catch (error) {
+                addResult('AI Engine test error: ' + error.message, 'error');
+            }
+        }
+
+        async function testChatMessage() {
+            try {
+                const engine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                addResult('Testing conversational AI...', 'info');
+                
+                const testMessage = 'I want to go from Delhi to Chandigarh using a quiet route';
+                const response = await engine.processUserMessage(testMessage);
+                addResult('Chat test successful! Response: ' + JSON.stringify(response, null, 2), 'success');
+                
+            } catch (error) {
+                addResult('Chat test error: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-load current configuration on page load
+        window.addEventListener('load', function() {
+            addResult('Gemini Test Console loaded', 'info');
+            addResult('Current configuration loaded', 'info');
+            showCurrentKey();
+            
+            // Pre-fill API key input if available
+            const currentKey = window.CONFIG?.geminiApiKey;
+            if (currentKey && currentKey !== 'YOUR_GEMINI_API_KEY') {
+                document.getElementById('apiKeyInput').value = currentKey;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1351,7 +1351,42 @@
       <script src="ai-nlp-engine.js"></script>
       <script src="gemini-route-analyzer.js"></script>
       <script src="gemini-setup-info.js"></script>
+      <script src="gemini-helper.js"></script>
       <script src="ai-action-handler.js"></script>
+      
+      <!-- AI Engine Initialization -->
+      <script>
+      // Initialize AI Engine for chatbot
+      let aiEngine = null;
+      
+      // Wait for DOM to be ready
+      document.addEventListener('DOMContentLoaded', function() {
+          console.log('🔧 Starting AI Engine initialization...');
+          try {
+              if (typeof AIUnderstandingEngine !== 'undefined') {
+                  console.log('🔍 AIUnderstandingEngine class found, creating instance...');
+                  aiEngine = new AIUnderstandingEngine(window.CONFIG?.geminiApiKey);
+                  console.log('✅ AI Engine initialized successfully:', aiEngine);
+                  
+                  // Test the AI engine with a simple message
+                  setTimeout(async () => {
+                      try {
+                          const testResponse = await aiEngine.processUserMessage('hello');
+                          console.log('🧪 AI Engine test successful:', testResponse);
+                      } catch (error) {
+                          console.error('🧪 AI Engine test failed:', error);
+                      }
+                  }, 1000);
+                  
+              } else {
+                  console.error('❌ AIUnderstandingEngine class not found');
+              }
+          } catch (error) {
+              console.error('❌ Failed to initialize AI Engine:', error);
+          }
+      });
+      </script>
+      
       <script src="chatbot-widget.js"></script>
 
       <!-- Turn-by-Turn Navigation Handler -->

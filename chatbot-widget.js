@@ -402,9 +402,55 @@
         getResponse: function(message) {
             const msg = message.toLowerCase().trim();
 
-            // PRIORITY: "How to" questions - instructional queries should be answered first
-            if ((msg.includes('how to') || msg.includes('how do i') || msg.includes('how can i')) && msg.includes('report')) {
-                return '📋 How to Report Issues:\n\n1️⃣ Scroll to "Report a Zone" section\n2️⃣ Enter location or use current position\n3️⃣ Select issue type: 🔊 Noise / 👥 Crowd / 🏗️ Construction\n4️⃣ Click "Report Zone"\n5️⃣ Your report helps the community!\n\n💡 Reports stay active for 5 minutes and help other users find better routes.';
+            // PRIORITY 1: Any message containing "report" + "noise/zone/crowd/construction"
+            if ((msg.includes('report') && (msg.includes('noise') || msg.includes('zone') || msg.includes('crowd') || msg.includes('construction'))) ||
+                (msg.includes('how') && msg.includes('report')) ||
+                (msg.includes('noise zone') || msg.includes('noise zones'))) {
+                this._lastTopic = 'report';
+                return `📍 How to Report a Zone - Step by Step:
+
+🎯 Quick Steps:
+1️⃣ Scroll down to the "Report a Zone" section on this page
+2️⃣ Enter location - Type a place name OR click 📍 for your current location
+3️⃣ Select type from the dropdown:
+   • 🔊 Noise Zone - construction, traffic, loud events
+   • 👥 Crowd Zone - busy areas, gatherings
+   • 🚧 Construction - roadwork, building sites
+4️⃣ Click "Report Zone" button to submit
+
+💡 Good to know:
+• Your report stays active for 5 minutes
+• Other users will be routed away from reported areas
+• You're helping make navigation better for everyone!
+
+Say take me to report section and I'll scroll you there! 🎯`;
+            }
+
+            // Handle "guide" follow-ups when last question was about reporting
+            if ((msg.includes('guide') || msg.includes('plse') || msg.includes('please')) && 
+                (this._lastTopic === 'report' || msg.includes('report'))) {
+                this._lastTopic = 'report';
+                return `📍 **How to Report a Zone** - Complete Guide:
+
+🎯 **Step 1**: Scroll down to "Report a Zone" section
+📍 **Step 2**: Enter location name OR click the location button
+📝 **Step 3**: Select zone type:
+   • 🔊 Noise Zone - construction, traffic, events
+   • 👥 Crowd Zone - busy areas, gatherings
+   • 🚧 Construction - roadwork, building sites
+✅ **Step 4**: Click "Report Zone" button
+
+💡 **Tips:**
+• Your reports stay active for 5 minutes
+• Other users will be routed away from these areas
+• You're helping make navigation better for everyone!
+
+Say "take me to report section" to go there directly! 🎯`;
+            }
+
+            // Track topic for follow-ups
+            if (msg.includes('report') || msg.includes('noise') || msg.includes('zone')) {
+                this._lastTopic = 'report';
             }
 
             // Custom answers for specific user questions (with dynamic distance/time if available)
@@ -698,7 +744,16 @@
         // If both origin and destination are set, trigger directions
         const userLoc = (window.aiAssistant && window.aiAssistant.currentUserLocation);
         const destLoc = (window.aiAssistant && window.aiAssistant.currentDestination);
-        if (userLoc && destLoc && (msg.includes('guide') || msg.includes('directions') || msg.includes('step-by-step'))) {
+        
+        // PRIORITY CHECK: Report-related questions should be handled directly
+        const isReportQuestion = (msg.includes('report') && (msg.includes('noise') || msg.includes('zone') || msg.includes('crowd') || msg.includes('construction'))) ||
+                                 (msg.includes('how') && msg.includes('report')) ||
+                                 msg.includes('noise zone') || msg.includes('noise zones');
+        
+        if (isReportQuestion) {
+            console.log('🎯 Report question detected - using direct response');
+            responseText = harborKnowledge.getResponse(message);
+        } else if (userLoc && destLoc && (msg.includes('guide') || msg.includes('directions') || msg.includes('step-by-step'))) {
             // Generate and show step-by-step directions
             if (typeof window.planComfortableRoute === 'function') {
                 window.planComfortableRoute(userLoc, destLoc, false);
@@ -721,40 +776,46 @@
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 }
                 
-                responseText = aiResponse.message;
-                if (aiResponse.action) {
-                    switch(aiResponse.action) {
-                        case 'CALCULATE_ROUTE':
-                            responseText += '\n\n🗺️ Displaying route on map...';
-                            if (window.handleAIAction) window.handleAIAction(aiResponse);
-                            setTimeout(() => {
-                                const mapContainer = document.getElementById('myMap') || document.querySelector('.map-container');
-                                if (mapContainer) {
-                                    mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            }, 500);
-                            break;
-                        case 'SET_ORIGIN':
-                            responseText += '\n\n📍 Origin marked on map!';
-                            if (window.handleAIAction) window.handleAIAction(aiResponse);
-                            break;
-                        case 'SET_DESTINATION':
-                            responseText += '\n\n🎯 Destination set! Set origin to calculate route.';
-                            if (window.handleAIAction) window.handleAIAction(aiResponse);
-                            break;
-                        case 'START_NAVIGATION':
-                            responseText += '\n\n🚀 Starting turn-by-turn navigation!';
-                            if (window.handleAIAction) window.handleAIAction(aiResponse);
-                            break;
-                        default:
-                            if (window.handleAIAction) window.handleAIAction(aiResponse);
+                if (aiResponse && aiResponse.message) {
+                    responseText = aiResponse.message;
+                    if (aiResponse.action) {
+                        switch(aiResponse.action) {
+                            case 'CALCULATE_ROUTE':
+                                responseText += '\n\n🗺️ Displaying route on map...';
+                                if (window.handleAIAction) window.handleAIAction(aiResponse);
+                                setTimeout(() => {
+                                    const mapContainer = document.getElementById('myMap') || document.querySelector('.map-container');
+                                    if (mapContainer) {
+                                        mapContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }, 500);
+                                break;
+                            case 'SET_ORIGIN':
+                                responseText += '\n\n📍 Origin marked on map!';
+                                if (window.handleAIAction) window.handleAIAction(aiResponse);
+                                break;
+                            case 'SET_DESTINATION':
+                                responseText += '\n\n🎯 Destination set! Set origin to calculate route.';
+                                if (window.handleAIAction) window.handleAIAction(aiResponse);
+                                break;
+                            case 'START_NAVIGATION':
+                                responseText += '\n\n🚀 Starting turn-by-turn navigation!';
+                                if (window.handleAIAction) window.handleAIAction(aiResponse);
+                                break;
+                            default:
+                                if (window.handleAIAction) window.handleAIAction(aiResponse);
+                        }
                     }
+                } else {
+                    console.warn('⚠️ AI Engine returned empty response, using knowledge base');
+                    responseText = harborKnowledge.getResponse(message);
                 }
             } catch (error) {
-                console.error('AI processing error:', error);
+                console.error('❌ AI processing error:', error);
                 responseText = harborKnowledge.getResponse(message);
             }
         } else {
+            console.log('⚠️ AI Engine not available, using knowledge base');
             // Fallback to knowledge base
             responseText = harborKnowledge.getResponse(message);
         }

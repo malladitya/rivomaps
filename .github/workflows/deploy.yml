@@ -22,18 +22,34 @@ jobs:
       
       - name: Create config.js from secrets
         run: |
-          echo "// API Configuration - Auto-generated during deployment" > config.js
-          echo "const config = {" >> config.js
-          echo "  geminiApiKey: '${{ secrets.GEMINI_API_KEY }}'," >> config.js
-          echo "  openWeatherMapApiKey: '${{ secrets.OPENWEATHERMAP_API_KEY }}'," >> config.js
-          echo "  emailjsPublicKey: '${{ secrets.EMAILJS_PUBLIC_KEY }}'" >> config.js
-          echo "};" >> config.js
-          echo "" >> config.js
-          echo "if (!config.geminiApiKey) {" >> config.js
-          echo "  console.warn('⚠️ API keys not configured in GitHub Secrets');" >> config.js
-          echo "}" >> config.js
-          echo "" >> config.js
-          echo "window.CONFIG = config;" >> config.js
+          cat > config.js << 'EOF'
+          // API Configuration - Auto-generated during deployment
+          const config = {
+            geminiApiKey: '${{ secrets.GEMINI_API_KEY }}',
+            openWeatherMapApiKey: '${{ secrets.OPENWEATHERMAP_API_KEY }}',
+            emailjsPublicKey: '${{ secrets.EMAILJS_PUBLIC_KEY }}',
+            azureMapsKey: '${{ secrets.AZURE_MAPS_KEY }}',
+            googleMapsApiKey: '${{ secrets.GOOGLE_MAPS_API_KEY }}',
+            firebaseConfig: {
+              apiKey: '${{ secrets.FIREBASE_API_KEY }}',
+              authDomain: 'rivo-navigation.firebaseapp.com',
+              projectId: 'rivo-navigation',
+              storageBucket: 'rivo-navigation.appspot.com',
+              messagingSenderId: '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}',
+              appId: '${{ secrets.FIREBASE_APP_ID }}',
+              measurementId: '${{ secrets.FIREBASE_MEASUREMENT_ID }}'
+            }
+          };
+
+          if (!config.geminiApiKey) {
+            console.warn('⚠️ GEMINI_API_KEY not configured in GitHub Secrets');
+          }
+
+          window.CONFIG = config;
+          if (typeof module !== 'undefined' && module.exports) {
+            module.exports = { config };
+          }
+          EOF
       
       - name: Create weather-config.js from secrets
         run: |
